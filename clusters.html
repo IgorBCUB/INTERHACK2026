@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Clustering Logístico · INTERHACK 2026</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0c0f1a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Header ── */
+header { padding: 10px 20px; background: #111827; border-bottom: 1px solid #1e2d45; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+header h1 { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; }
+header h1 span { color: #6366f1; }
+.day-tabs { display: flex; gap: 5px; }
+.day-tab { padding: 5px 13px; border-radius: 6px; border: 1px solid #2d3a55; background: transparent; color: #64748b; cursor: pointer; font-size: 12px; font-weight: 600; transition: all .15s; }
+.day-tab:hover { background: #1e2d45; color: #e2e8f0; }
+.day-tab.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+.header-kpis { display: flex; gap: 18px; margin-left: auto; }
+.hkpi { text-align: right; }
+.hkpi .v { font-size: 16px; font-weight: 700; color: #818cf8; }
+.hkpi .l { font-size: 9px; color: #475569; text-transform: uppercase; letter-spacing: .5px; }
+.hkpi.fuel .v { color: #34d399; }
+.hkpi.co2 .v { color: #fb923c; }
+.hkpi.ord .v { color: #f59e0b; }
+
+/* ── Layout ── */
+.layout { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Panel ── */
+.panel { width: 320px; background: #111827; border-right: 1px solid #1e2d45; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+.panel-filters { padding: 10px 12px; border-bottom: 1px solid #1e2d45; display: flex; flex-wrap: wrap; gap: 5px; }
+.zone-btn { padding: 3px 9px; border-radius: 5px; border: 1px solid #2d3a55; background: transparent; color: #64748b; cursor: pointer; font-size: 11px; font-weight: 700; transition: all .12s; }
+.zone-btn:hover { background: #1e2d45; }
+.zone-btn.active { color: #0c0f1a; }
+.zone-btn.all { color: #94a3b8; }
+.zone-btn.all.active { background: #475569; border-color: #475569; color: #fff; }
+.panel-scroll { flex: 1; overflow-y: auto; padding: 8px 10px; }
+.panel-scroll::-webkit-scrollbar { width: 4px; }
+.panel-scroll::-webkit-scrollbar-thumb { background: #2d3a55; border-radius: 2px; }
+
+/* ── Cluster card ── */
+.c-card { border-radius: 8px; background: #161d2e; border-left: 3px solid; margin-bottom: 7px; cursor: pointer; transition: all .15s; }
+.c-card:hover { background: #1a2540; }
+.c-card.selected { background: #1a2540; box-shadow: 0 0 0 1px #6366f133; }
+.c-card.dimmed { opacity: 0.25; }
+.c-head { padding: 8px 10px; display: flex; align-items: center; gap: 8px; }
+.zone-badge { width: 22px; height: 22px; border-radius: 5px; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.c-title { flex: 1; font-size: 11px; font-weight: 600; color: #cbd5e1; }
+.c-title small { display: block; font-size: 9px; color: #475569; font-weight: 400; margin-top: 1px; }
+.c-badges { display: flex; gap: 4px; align-items: center; }
+.badge { padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; }
+.b-strategy { }
+.b-by_reference { background: #064e3b; color: #6ee7b7; }
+.b-by_order     { background: #431407; color: #fdba74; }
+.b-hybrid       { background: #1e1b4b; color: #a5b4fc; }
+.b-fragile { background: #450a0a; color: #fca5a5; }
+.b-priority { background: #3b1d08; color: #fcd34d; }
+.b-van { background: #1e293b; color: #94a3b8; }
+.b-t8  { background: #0c1a2e; color: #60a5fa; }
+.b-t6  { background: #0f1d1a; color: #34d399; }
+
+.c-body { display: none; padding: 0 10px 9px; }
+.c-body.open { display: block; }
+.c-meta { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-bottom: 8px; padding-top: 4px; border-top: 1px solid #1e2d45; }
+.cm { text-align: center; }
+.cm .v { font-size: 13px; font-weight: 700; color: #818cf8; }
+.cm .l { font-size: 9px; color: #475569; }
+.cm .v.green { color: #34d399; }
+.cm .v.orange { color: #fb923c; }
+.pallet-bar { height: 4px; border-radius: 2px; background: #1e2d45; margin-bottom: 8px; overflow: hidden; }
+.pallet-fill { height: 100%; border-radius: 2px; transition: width .3s; }
+.cats { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 7px; }
+.cat-pill { padding: 1px 6px; border-radius: 4px; font-size: 9px; background: #1e2d45; color: #64748b; }
+.stop-list { }
+.stop-row { font-size: 10px; padding: 3px 0; border-bottom: 1px solid #1a2233; display: flex; gap: 5px; align-items: baseline; }
+.stop-row:last-child { border: none; }
+.sn { color: #334155; min-width: 14px; font-size: 9px; }
+.sname { flex: 1; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scity { color: #475569; min-width: 55px; font-size: 9px; }
+.spal { color: #6366f1; min-width: 28px; text-align: right; font-size: 9px; }
+.sfrag { font-size: 8px; }
+
+/* ── Map ── */
+.map-wrap { flex: 1; position: relative; overflow: hidden; }
+canvas { display: block; width: 100%; height: 100%; }
+#tooltip {
+  position: absolute; background: #111827ee; border: 1px solid #2d3a55;
+  border-radius: 9px; padding: 10px 14px; font-size: 11px; pointer-events: none;
+  opacity: 0; transition: opacity .12s; max-width: 230px; line-height: 1.75;
+  box-shadow: 0 6px 24px rgba(0,0,0,.6); z-index: 10;
+}
+#tooltip b { color: #fff; font-size: 12px; }
+#tooltip .tt-row { color: #94a3b8; }
+#tooltip .tt-row span { color: #e2e8f0; }
+
+.map-legend {
+  position: absolute; bottom: 14px; right: 14px;
+  background: #111827cc; border: 1px solid #1e2d45; border-radius: 9px;
+  padding: 10px 14px; font-size: 10px; backdrop-filter: blur(4px);
+}
+.ml-title { color: #475569; text-transform: uppercase; letter-spacing: 1px; font-size: 9px; margin-bottom: 6px; }
+.ml-row { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; color: #94a3b8; }
+.ml-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.ml-line { width: 22px; height: 3px; border-radius: 1px; flex-shrink: 0; }
+
+/* Scrollbar */
+* { scrollbar-width: thin; scrollbar-color: #2d3a55 transparent; }
+
+/* Zone colours (8 zones) */
+.z-A { background: #6366f1; color: #fff; }
+.z-B { background: #06b6d4; color: #0c0f1a; }
+.z-C { background: #10b981; color: #0c0f1a; }
+.z-D { background: #f59e0b; color: #0c0f1a; }
+.z-E { background: #f43f5e; color: #fff; }
+.z-F { background: #a855f7; color: #fff; }
+.z-G { background: #ec4899; color: #fff; }
+.z-H { background: #14b8a6; color: #0c0f1a; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>Clustering</span> Logístico · INTERHACK 2026</h1>
+  <div class="day-tabs" id="tabs"></div>
+  <div class="header-kpis">
+    <div class="hkpi ord"><div class="v" id="hkpi-orders">—</div><div class="l">Pedidos</div></div>
+    <div class="hkpi"><div class="v" id="hkpi-clusters">—</div><div class="l">Clusters</div></div>
+    <div class="hkpi fuel"><div class="v" id="hkpi-fuel">—</div><div class="l">Combustible</div></div>
+    <div class="hkpi co2"><div class="v" id="hkpi-co2">—</div><div class="l">CO₂</div></div>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="panel">
+    <div class="panel-filters" id="zone-filters"></div>
+    <div class="panel-scroll" id="cluster-list"></div>
+  </div>
+  <div class="map-wrap">
+    <canvas id="c"></canvas>
+    <div id="tooltip"></div>
+    <div class="map-legend" id="map-legend"></div>
+  </div>
+</div>
+
+<script>
+// ── Constants ──────────────────────────────────────────────────────────────────
+
+const ZONE_COLORS = {
+  A: '#6366f1', B: '#06b6d4', C: '#10b981', D: '#f59e0b',
+  E: '#f43f5e', F: '#a855f7', G: '#ec4899', H: '#14b8a6'
+};
+
+const STRAT_COLORS = {
+  by_reference: { bg: '#064e3b', fg: '#6ee7b7', label: 'Por referencia' },
+  by_order:     { bg: '#431407', fg: '#fdba74', label: 'Por pedido' },
+  hybrid:       { bg: '#1e1b4b', fg: '#a5b4fc', label: 'Híbrido' },
+};
+
+const VTYPE_BADGE = {
+  truck_8: { cls: 'b-t8', label: 'Camión 8P' },
+  truck_6: { cls: 'b-t6', label: 'Camión 6P' },
+  van_3:   { cls: 'b-van', label: 'Furgoneta 3P' },
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+let DATA = [];
+let currentDay = 0;
+let selectedVehicle = null;  // highlight ALL trips/clusters of this vehicle
+let activeZone = 'all';
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+
+async function init() {
+  DATA = await fetch('results_clustering.json').then(r => r.json());
+  buildTabs();
+  renderDay(0);
+}
+
+function buildTabs() {
+  const el = document.getElementById('tabs');
+  el.innerHTML = '';
+  DATA.forEach((d, i) => {
+    const t = document.createElement('button');
+    t.className = 'day-tab' + (i === 0 ? ' active' : '');
+    t.textContent = d.weekday;
+    t.onclick = () => {
+      currentDay = i;
+      selectedVehicle = null;
+      activeZone = 'all';
+      document.querySelectorAll('.day-tab').forEach((x, j) => x.classList.toggle('active', j === i));
+      renderDay(i);
+    };
+    el.appendChild(t);
+  });
+}
+
+function renderDay(idx) {
+  const day = DATA[idx];
+  updateHeaderKPIs(day);
+  buildZoneFilters(day);
+  renderClusterList(day);
+  drawMap(day);
+}
+
+// ── Header KPIs ───────────────────────────────────────────────────────────────
+
+function updateHeaderKPIs(day) {
+  document.getElementById('hkpi-orders').textContent   = day.n_orders;
+  document.getElementById('hkpi-clusters').textContent = day.n_clusters;
+  document.getElementById('hkpi-fuel').textContent     = day.total_fuel_l.toFixed(0) + 'L';
+  document.getElementById('hkpi-co2').textContent      = day.co2_kg.toFixed(0) + 'kg';
+}
+
+// ── Zone filter buttons ───────────────────────────────────────────────────────
+
+function buildZoneFilters(day) {
+  const zones = Object.keys(day.warehouse_zones || {}).sort();
+  const el = document.getElementById('zone-filters');
+  el.innerHTML = '';
+
+  const allBtn = document.createElement('button');
+  allBtn.className = 'zone-btn all' + (activeZone === 'all' ? ' active' : '');
+  allBtn.textContent = 'Todas';
+  allBtn.onclick = () => setZone('all', day);
+  el.appendChild(allBtn);
+
+  zones.forEach(z => {
+    const b = document.createElement('button');
+    b.className = 'zone-btn z-' + z + (activeZone === z ? ' active' : '');
+    b.textContent = 'Zona ' + z;
+    b.onclick = () => setZone(z, day);
+    el.appendChild(b);
+  });
+}
+
+function setZone(z, day) {
+  activeZone = z;
+  selectedVehicle = null;
+  buildZoneFilters(day);
+  renderClusterList(day);
+  drawMap(day);
+}
+
+// ── Cluster panel ─────────────────────────────────────────────────────────────
+
+function renderClusterList(day) {
+  const el = document.getElementById('cluster-list');
+  el.innerHTML = '';
+
+  const clusters = extractClusters(day);
+
+  // Vehicle summary header when one is selected
+  if (selectedVehicle) {
+    const vClusters = clusters.filter(c => c.vehicle_id === selectedVehicle);
+    if (vClusters.length) {
+      const totalStops = vClusters.reduce((s, c) => s + c.stops.length, 0);
+      const totalTime  = vClusters.reduce((s, c) => s + (c.total_time_seconds || 0), 0);
+      const totalFuel  = vClusters.reduce((s, c) => s + (c.total_fuel || 0), 0);
+      const h = Math.floor(totalTime/3600), m = Math.floor((totalTime%3600)/60);
+      const vtype = vClusters[0]?.vehicle_type || 'truck_6';
+      const vtb = VTYPE_BADGE[vtype] || VTYPE_BADGE.truck_6;
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'background:#1a2540;border:1px solid #6366f144;border-radius:8px;padding:10px 12px;margin-bottom:8px;';
+      hdr.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:13px;font-weight:700;color:#818cf8">${selectedVehicle}</span>
+          <span class="badge ${vtb.cls}">${vtb.label}</span>
+          <span style="margin-left:auto;font-size:10px;color:#475569;cursor:pointer" onclick="selectVehicle(null)">✕</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">
+          <div style="text-align:center"><div style="font-size:14px;font-weight:700;color:#818cf8">${vClusters.length}</div><div style="font-size:9px;color:#475569">viajes</div></div>
+          <div style="text-align:center"><div style="font-size:14px;font-weight:700;color:#f59e0b">${totalStops}</div><div style="font-size:9px;color:#475569">paradas</div></div>
+          <div style="text-align:center"><div style="font-size:14px;font-weight:700;color:#34d399">${totalFuel.toFixed(1)}L</div><div style="font-size:9px;color:#475569">combustible</div></div>
+          <div style="text-align:center"><div style="font-size:14px;font-weight:700;color:#a78bfa">${h}h${String(m).padStart(2,'0')}m</div><div style="font-size:9px;color:#475569">tiempo</div></div>
+        </div>`;
+      el.appendChild(hdr);
+    }
+  }
+
+  clusters.forEach(cl => {
+    const zone = cl.warehouse_zone || '?';
+    const color = ZONE_COLORS[zone] || '#475569';
+    const zoneDimmed = (activeZone !== 'all' && zone !== activeZone);
+    const dimmed = zoneDimmed || (selectedVehicle && cl.vehicle_id !== selectedVehicle);
+    const isSelected = selectedVehicle === cl.vehicle_id;
+    const strat = cl.chosen_strategy || 'by_order';
+    const sc = STRAT_COLORS[strat] || STRAT_COLORS.by_order;
+    const vtype = cl.vehicle_type || 'truck_6';
+    const vtb = VTYPE_BADGE[vtype] || VTYPE_BADGE.truck_6;
+    const cap = cl.capacity_pallets || 6;
+    const fillPct = Math.min(100, Math.round((cl.n_pallets / cap) * 100));
+
+    const card = document.createElement('div');
+    card.className = 'c-card' + (isSelected ? ' selected' : '') + (dimmed ? ' dimmed' : '');
+    card.style.borderColor = color;
+
+    const stopsHtml = cl.stops.slice(0, 30).map((s, si) => {
+      const fragIcon = s.fragility >= 3 ? '🔴' : s.fragility >= 2 ? '🟡' : '';
+      return `
+        <div class="stop-row">
+          <span class="sn">${si + 1}</span>
+          <span class="sname" title="${s.client_name}">${s.client_name}</span>
+          <span class="scity">${(s.city || '').split(' ')[0]}</span>
+          <span class="sfrag">${fragIcon}</span>
+          <span class="spal">${s.n_pallets ? s.n_pallets.toFixed(1) + 'P' : s.boxes + 'cj'}</span>
+        </div>`;
+    }).join('');
+    const moreStops = cl.stops.length > 30 ? `<div style="font-size:9px;color:#475569;padding-top:4px">+${cl.stops.length - 30} más...</div>` : '';
+
+    const catPills = (cl.categories || []).map(c => `<span class="cat-pill">${c}</span>`).join('');
+    const warnStack = cl.stack_violations > 0
+      ? `<span class="badge" style="background:#450a0a;color:#fca5a5">⚠ ${cl.stack_violations} apil.</span>` : '';
+
+    card.innerHTML = `
+      <div class="c-head">
+        <div class="zone-badge z-${zone}" title="Zona almacén ${zone}">${zone}</div>
+        <div class="c-title">
+          ${cl.vehicle_id || 'Sin asignar'}
+          <small>${cl.stops.length} paradas · ${cl.n_pallets}/${cap}P${cl.is_reload ? ' · recarga' : ''}</small>
+        </div>
+        <div class="c-badges">
+          ${cl.has_fragile ? '<span class="badge b-fragile">Frágil</span>' : ''}
+          ${cl.has_priority ? '<span class="badge b-priority">Prior.</span>' : ''}
+          <span class="badge b-strategy b-${strat}">${sc.label}</span>
+          ${warnStack}
+        </div>
+      </div>
+      <div class="c-body ${isSelected ? 'open' : ''}">
+        <div class="pallet-bar"><div class="pallet-fill" style="width:${fillPct}%;background:${color}"></div></div>
+        <div class="c-meta">
+          <div class="cm"><div class="v">${cl.n_pallets}</div><div class="l">Palets</div></div>
+          <div class="cm"><div class="v green">${cl.total_fuel ? cl.total_fuel.toFixed(1) : '—'}L</div><div class="l">Combustible</div></div>
+          <div class="cm"><div class="v">${fmtTime(cl.total_time_seconds)}</div><div class="l">Tiempo</div></div>
+        </div>
+        <div class="cats">${catPills}</div>
+        <div class="stop-list">${stopsHtml}${moreStops}</div>
+      </div>`;
+
+    // Click anywhere on card head → select vehicle (all trips)
+    card.querySelector('.c-head').addEventListener('click', () => selectVehicle(cl.vehicle_id));
+
+    el.appendChild(card);
+  });
+}
+
+function selectVehicle(vid) {
+  selectedVehicle = (selectedVehicle === vid) ? null : vid;
+  renderClusterList(DATA[currentDay]);
+  drawMap(DATA[currentDay]);
+}
+
+// ── Extract clusters from day data ────────────────────────────────────────────
+
+function extractClusters(day) {
+  const clusters = [];
+  day.routes.forEach(route => {
+    route.trips.forEach(trip => {
+      clusters.push({
+        cluster_id:        trip.cluster_id,
+        warehouse_zone:    trip.warehouse_zone,
+        vehicle_id:        route.vehicle_id,
+        vehicle_type:      route.vehicle_type,
+        capacity_pallets:  route.capacity_pallets,
+        driver_name:       route.driver_name,
+        n_pallets:         trip.n_pallets,
+        chosen_strategy:   trip.chosen_strategy,
+        warehouse_cost_s:  trip.warehouse_cost_s,
+        stack_violations:  trip.stack_violations,
+        fragile_at_back:   trip.fragile_at_back_van,
+        has_fragile:       trip.has_fragile,
+        has_priority:      trip.has_priority,
+        categories:        trip.categories || [],
+        total_time_seconds: trip.total_time_seconds,
+        total_fuel:        trip.total_fuel_litres,
+        stops:             trip.stops,
+        is_reload:         trip.is_reload,
+      });
+    });
+  });
+  return clusters;
+}
+
+// ── Map drawing ───────────────────────────────────────────────────────────────
+
+function drawMap(day) {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const dpr = devicePixelRatio || 1;
+  canvas.width  = canvas.offsetWidth  * dpr;
+  canvas.height = canvas.offsetHeight * dpr;
+  ctx.scale(dpr, dpr);
+  const cW = canvas.offsetWidth, cH = canvas.offsetHeight;
+  ctx.clearRect(0, 0, cW, cH);
+  ctx.fillStyle = '#0c0f1a';
+  ctx.fillRect(0, 0, cW, cH);
+
+  const clusters = extractClusters(day);
+  const depot = day.depot;
+
+  const nodeMap = {
+    DEPOT: { id: 'DEPOT', name: depot.name, lat: depot.lat, lon: depot.lon, isDepot: true }
+  };
+  clusters.forEach(cl => {
+    cl.stops.forEach(s => {
+      nodeMap[s.client_id] = {
+        id: s.client_id, name: s.client_name, lat: s.lat, lon: s.lon,
+        city: s.city, boxes: s.boxes, n_pallets: s.n_pallets,
+        fragility: s.fragility, cluster_id: cl.cluster_id,
+        vehicle_id: cl.vehicle_id, isDepot: false,
+      };
+    });
+  });
+  const nodes = Object.values(nodeMap);
+
+  const lats = nodes.map(n => n.lat), lons = nodes.map(n => n.lon);
+  const pad = 55;
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+  const proj = (lat, lon) => ({
+    x: pad + (lon - minLon) / ((maxLon - minLon) || 1) * (cW - pad * 2),
+    y: cH - pad - (lat - minLat) / ((maxLat - minLat) || 1) * (cH - pad * 2),
+  });
+  const pos = {};
+  nodes.forEach(n => { pos[n.id] = proj(n.lat, n.lon); });
+
+  const visibleClusters = clusters.filter(cl =>
+    activeZone === 'all' || cl.warehouse_zone === activeZone
+  );
+
+  // Helper: is this cluster part of the selected vehicle?
+  const isSel  = cl => selectedVehicle && cl.vehicle_id === selectedVehicle;
+  const isDim  = cl => selectedVehicle && cl.vehicle_id !== selectedVehicle;
+
+  // ── 1. Convex hulls ──────────────────────────────────────────────────────────
+  visibleClusters.forEach(cl => {
+    const zone = cl.warehouse_zone || 'A';
+    const color = ZONE_COLORS[zone] || '#475569';
+    const sel = isSel(cl), dim = isDim(cl);
+    const pts = cl.stops.map(s => pos[s.client_id]).filter(Boolean);
+    if (!pts.length) return;
+
+    ctx.globalAlpha = dim ? 0.03 : (sel ? 0.20 : 0.09);
+    if (pts.length >= 3) {
+      drawHull(ctx, convexHull(pts), 30);
+      ctx.fillStyle = color; ctx.fill();
+      ctx.strokeStyle = color; ctx.lineWidth = sel ? 2.5 : 1; ctx.setLineDash([]);
+      ctx.globalAlpha = dim ? 0.04 : (sel ? 0.55 : 0.18);
+      ctx.stroke();
+    } else if (pts.length === 2) {
+      ctx.strokeStyle = color; ctx.lineWidth = sel ? 3 : 1.5;
+      ctx.globalAlpha = dim ? 0.04 : (sel ? 0.5 : 0.18);
+      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  });
+
+  // ── 2. Route edges ───────────────────────────────────────────────────────────
+  visibleClusters.forEach(cl => {
+    const zone = cl.warehouse_zone || 'A';
+    const color = ZONE_COLORS[zone] || '#475569';
+    const sel = isSel(cl), dim = isDim(cl);
+    const seq = ['DEPOT', ...cl.stops.map(s => s.client_id), 'DEPOT'];
+    ctx.strokeStyle = color;
+    ctx.lineWidth = sel ? 2.5 : 1.0;
+    ctx.globalAlpha = dim ? 0.03 : (sel ? 0.80 : 0.22);
+    ctx.setLineDash(cl.is_reload ? [6, 4] : []);
+
+    for (let i = 0; i < seq.length - 1; i++) {
+      const a = pos[seq[i]], b = pos[seq[i + 1]];
+      if (!a || !b) continue;
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 - 10;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y);
+      ctx.quadraticCurveTo(mx, my, b.x, b.y); ctx.stroke();
+
+      if (sel && i < seq.length - 2) {
+        const t = 0.6;
+        const qx = (1-t)**2*a.x+2*(1-t)*t*mx+t*t*b.x;
+        const qy = (1-t)**2*a.y+2*(1-t)*t*my+t*t*b.y;
+        const dx = 2*((1-t)*(mx-a.x)+t*(b.x-mx));
+        const dy = 2*((1-t)*(my-a.y)+t*(b.y-my));
+        ctx.save(); ctx.translate(qx,qy); ctx.rotate(Math.atan2(dy,dx));
+        ctx.fillStyle=color; ctx.globalAlpha=0.9;
+        ctx.beginPath(); ctx.moveTo(7,0); ctx.lineTo(-4,3); ctx.lineTo(-4,-3); ctx.closePath(); ctx.fill();
+        ctx.restore();
+        ctx.globalAlpha = sel ? 0.80 : 0.22;
+      }
+    }
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+  });
+
+  // ── 3. Stop nodes ────────────────────────────────────────────────────────────
+  nodes.forEach(n => {
+    if (n.isDepot) return;
+    const p = pos[n.id];
+    if (!p) return;
+    const cl = visibleClusters.find(c => c.cluster_id === n.cluster_id);
+    if (!cl) return;
+    const zone = cl.warehouse_zone || 'A';
+    const color = ZONE_COLORS[zone] || '#475569';
+    const sel = isSel(cl);
+    const dim = isDim(cl) || (activeZone !== 'all' && zone !== activeZone);
+
+    ctx.globalAlpha = dim ? 0.08 : 1;
+    if (sel) { ctx.shadowColor = color + '99'; ctx.shadowBlur = 12; }
+    const r = n.fragility >= 3 ? 7 : (n.fragility >= 2 ? 6 : 5);
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.fill();
+    if (sel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; ctx.stroke(); }
+    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  });
+
+  // ── 4. Depot ─────────────────────────────────────────────────────────────────
+  const dp = pos['DEPOT'];
+  if (dp) {
+    ctx.shadowColor = '#f59e0b88'; ctx.shadowBlur = 22;
+    ctx.beginPath(); ctx.arc(dp.x, dp.y, 13, 0, Math.PI * 2);
+    ctx.fillStyle = '#f59e0b'; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#0c0f1a';
+    ctx.font = 'bold 10px system-ui';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('D', dp.x, dp.y);
+  }
+
+  // ── 5. Cluster zone labels ───────────────────────────────────────────────────
+  visibleClusters.forEach(cl => {
+    if (!cl.stops.length) return;
+    const zone = cl.warehouse_zone || '?';
+    const color = ZONE_COLORS[zone] || '#475569';
+    const sel = isSel(cl), dim = isDim(cl);
+    if (dim) return;
+    const pts = cl.stops.map(s => pos[s.client_id]).filter(Boolean);
+    if (!pts.length) return;
+    const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+    const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+
+    ctx.globalAlpha = sel ? 1 : 0.5;
+    ctx.font = `${sel ? 'bold ' : ''}10px system-ui`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const label = `${zone} · ${cl.n_pallets}P`;
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = color + '22';
+    ctx.beginPath(); ctx.roundRect(cx-tw/2-5, cy-9, tw+10, 18, 4); ctx.fill();
+    ctx.fillStyle = color;
+    ctx.fillText(label, cx, cy);
+    ctx.globalAlpha = 1;
+  });
+
+  // ── 6. Legend ────────────────────────────────────────────────────────────────
+  const legend = document.getElementById('map-legend');
+  const zoneItems = Object.entries(ZONE_COLORS).map(([z, c]) =>
+    `<div class="ml-row"><div class="ml-dot" style="background:${c}"></div><span>Zona ${z}</span></div>`
+  ).join('');
+  legend.innerHTML = `
+    <div class="ml-title">Leyenda</div>
+    <div class="ml-row"><div class="ml-dot" style="background:#f59e0b"></div><span>Almacén</span></div>
+    <div style="border-top:1px solid #1e2d45;margin:5px 0"></div>
+    <div class="ml-title">Zonas almacén</div>
+    ${zoneItems}`;
+
+  // ── Tooltip ──────────────────────────────────────────────────────────────────
+  canvas.onmousemove = e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    let closest = null, minD = 20;
+    for (const [id, p] of Object.entries(pos)) {
+      const d = Math.hypot(p.x - mx, p.y - my);
+      if (d < minD) { minD = d; closest = id; }
+    }
+    const tt = document.getElementById('tooltip');
+    if (closest && closest !== 'DEPOT') {
+      const n = nodeMap[closest];
+      if (!n) { tt.style.opacity = '0'; return; }
+      const cl = clusters.find(c => c.cluster_id === n.cluster_id);
+      const zone = cl ? cl.warehouse_zone : '?';
+      const color = ZONE_COLORS[zone] || '#475569';
+      const strat = cl ? (STRAT_COLORS[cl.chosen_strategy] || STRAT_COLORS.by_order) : STRAT_COLORS.by_order;
+      const fragLabel = ['—', 'Normal', 'Frágil', '⚠ Muy frágil'][Math.min(n.fragility || 0, 3)];
+      tt.innerHTML = `
+        <b>${n.name}</b><br>
+        <div class="tt-row"><span style="color:${color}">Zona ${zone}</span> · ${cl ? cl.vehicle_id : '?'}</div>
+        <div class="tt-row">Ciudad: <span>${n.city}</span></div>
+        <div class="tt-row">Cajas: <span>${n.boxes|0}</span> · Palets: <span>${n.n_pallets ? n.n_pallets.toFixed(1) : '—'}</span></div>
+        <div class="tt-row">Fragilidad: <span>${fragLabel}</span></div>
+        <div class="tt-row">Estrategia: <span style="color:${strat.fg}">${strat.label}</span></div>`;
+      tt.style.left  = Math.min(e.clientX - rect.left + 16, cW - 240) + 'px';
+      tt.style.top   = Math.max(e.clientY - rect.top - 60, 10) + 'px';
+      tt.style.opacity = '1';
+    } else if (closest === 'DEPOT') {
+      tt.innerHTML = `<b>${nodeMap['DEPOT'].name}</b><br><div class="tt-row">Punto de salida y recarga</div>`;
+      tt.style.left = (e.clientX - rect.left + 16) + 'px';
+      tt.style.top  = (e.clientY - rect.top - 30) + 'px';
+      tt.style.opacity = '1';
+    } else {
+      tt.style.opacity = '0';
+    }
+  };
+  canvas.onmouseleave = () => { document.getElementById('tooltip').style.opacity = '0'; };
+
+  // Click on map → select that vehicle
+  canvas.onclick = e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    let closest = null, minD = 16;
+    for (const [id, p] of Object.entries(pos)) {
+      if (id === 'DEPOT') continue;
+      const d = Math.hypot(p.x - mx, p.y - my);
+      if (d < minD) { minD = d; closest = id; }
+    }
+    if (closest && nodeMap[closest]) {
+      selectVehicle(nodeMap[closest].vehicle_id);
+    } else {
+      selectVehicle(null);
+    }
+  };
+}
+
+// ── Geometry helpers ──────────────────────────────────────────────────────────
+
+function convexHull(pts) {
+  if (pts.length <= 2) return pts;
+  const sorted = [...pts].sort((a, b) => a.x - b.x || a.y - b.y);
+  const lower = [], upper = [];
+  for (const p of sorted) {
+    while (lower.length >= 2 && cross(lower[lower.length-2], lower[lower.length-1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+  for (const p of [...sorted].reverse()) {
+    while (upper.length >= 2 && cross(upper[upper.length-2], upper[upper.length-1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+  upper.pop(); lower.pop();
+  return [...lower, ...upper];
+}
+
+function cross(O, A, B) {
+  return (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
+}
+
+function drawHull(ctx, hull, expand = 20) {
+  if (!hull.length) return;
+  if (hull.length === 1) { ctx.beginPath(); ctx.arc(hull[0].x, hull[0].y, expand, 0, Math.PI*2); return; }
+  if (hull.length === 2) {
+    const dx=hull[1].x-hull[0].x, dy=hull[1].y-hull[0].y, len=Math.hypot(dx,dy)||1;
+    const nx=-dy/len*expand, ny=dx/len*expand;
+    ctx.beginPath();
+    ctx.moveTo(hull[0].x+nx,hull[0].y+ny); ctx.lineTo(hull[1].x+nx,hull[1].y+ny);
+    ctx.lineTo(hull[1].x-nx,hull[1].y-ny); ctx.lineTo(hull[0].x-nx,hull[0].y-ny); ctx.closePath(); return;
+  }
+  const n = hull.length;
+  const expanded = hull.map((p, i) => {
+    const prev=hull[(i-1+n)%n], next=hull[(i+1)%n];
+    const d1x=p.x-prev.x, d1y=p.y-prev.y;
+    const d2x=next.x-p.x, d2y=next.y-p.y;
+    const nx=-(d1y/(Math.hypot(d1x,d1y)||1)+d2y/(Math.hypot(d2x,d2y)||1));
+    const ny= (d1x/(Math.hypot(d1x,d1y)||1)+d2x/(Math.hypot(d2x,d2y)||1));
+    const len=Math.hypot(nx,ny)||1;
+    return {x:p.x+(nx/len)*expand, y:p.y+(ny/len)*expand};
+  });
+  ctx.beginPath(); ctx.moveTo(expanded[0].x, expanded[0].y);
+  for (let i=1;i<expanded.length;i++) ctx.lineTo(expanded[i].x, expanded[i].y);
+  ctx.closePath();
+}
+
+function fmtTime(s) {
+  if (!s) return '—';
+  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60);
+  return `${h}h ${String(m).padStart(2,'0')}m`;
+}
+
+window.addEventListener('resize', () => drawMap(DATA[currentDay]));
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Damm — App Conductor</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f8f9fa;--card:#ffffff;--primary:#e8001c;--primary-fg:#fff;
+  --muted:#6b7280;--border:#e5e7eb;--success:#16a34a;--warning:#d97706;
+  --text:#111827;--text2:#374151;--accent:#fef2f2;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto}
+
+/* Header */
+.app-header{position:sticky;top:0;z-index:100;background:var(--card);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:10px}
+.app-logo{width:36px;height:36px;background:var(--primary);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:18px;flex-shrink:0}
+.app-title{font-size:15px;font-weight:800;color:var(--text)}
+.app-sub{font-size:11px;color:var(--muted)}
+.selector-wrap{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+select.route-sel{font-size:11px;padding:3px 8px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text);font-weight:600;cursor:pointer;max-width:140px}
+
+/* Screens */
+.screen{display:none;flex-direction:column;min-height:calc(100vh - 57px)}
+.screen.active{display:flex}
+
+/* ── SCREEN: selector ── */
+.sel-screen{padding:20px 16px;gap:12px;background:var(--bg)}
+.sel-day-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;flex-shrink:0}
+.sel-day-tab{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.sel-day-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.sel-vehicle-list{display:flex;flex-direction:column;gap:8px;overflow-y:auto}
+.sel-vcard{background:#fff;border-radius:16px;border:1px solid var(--border);padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .15s}
+.sel-vcard:hover{border-color:var(--primary);box-shadow:0 2px 8px #e8001c22}
+.sel-vcard.selected{border-color:var(--primary);background:var(--accent)}
+.sel-vicon{width:44px;height:44px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.sel-vinfo{flex:1}
+.sel-vname{font-size:13px;font-weight:800;color:var(--text)}
+.sel-vsub{font-size:11px;color:var(--muted);margin-top:1px}
+.sel-vstats{display:flex;gap:10px;margin-top:6px}
+.sel-vstat{font-size:11px;color:var(--primary);font-weight:700}
+.btn-start{background:var(--primary);color:#fff;border:none;border-radius:16px;padding:16px;font-size:16px;font-weight:800;cursor:pointer;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-start:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── SCREEN: navigation (map + next stop) ── */
+.nav-map{height:45vh;min-height:280px;position:relative;background:#e5e7eb}
+#leaflet-map{height:100%;width:100%}
+.co2-badge{position:absolute;top:10px;right:10px;z-index:400;background:#fff;border-radius:12px;padding:6px 10px;box-shadow:0 2px 8px #0003;font-size:10px;font-weight:700}
+.co2-badge .co2-val{font-size:16px;font-weight:900;color:var(--success)}
+.co2-badge .co2-lbl{color:var(--muted);font-size:9px}
+.nav-body{padding:14px;display:flex;flex-direction:column;gap:10px;flex:1}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat-card{background:#fff;border-radius:12px;border:1px solid var(--border);padding:10px;text-align:center}
+.stat-val{font-size:18px;font-weight:900;color:var(--text)}
+.stat-lbl{font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-top:1px}
+.next-stop-card{background:#fff;border-radius:16px;border:1px solid var(--border);padding:14px}
+.next-stop-label{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted)}
+.next-stop-num{width:44px;height:44px;border-radius:12px;background:var(--primary);color:#fff;font-weight:900;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.next-stop-name{font-size:17px;font-weight:900;color:var(--text);line-height:1.2}
+.next-stop-addr{font-size:12px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:4px}
+.stop-list-mini{display:flex;flex-direction:column;gap:4px;max-height:120px;overflow-y:auto}
+.stop-mini{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font-size:11px;cursor:pointer}
+.stop-mini.done{opacity:.4;text-decoration:line-through}
+.stop-mini.active{background:var(--accent);border:1px solid var(--primary)}
+.stop-mini-num{width:20px;height:20px;border-radius:6px;background:var(--border);font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.stop-mini.active .stop-mini-num{background:var(--primary);color:#fff}
+.stop-mini.done .stop-mini-num{background:var(--success);color:#fff}
+
+/* ── SCREEN: active stop ── */
+.stop-screen{padding:14px;display:flex;flex-direction:column;gap:10px;flex:1}
+.stop-header-card{background:var(--card);border-radius:16px;border:1px solid var(--border);padding:14px}
+.stop-num-badge{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted)}
+.stop-name-big{font-size:22px;font-weight:900;color:var(--text);line-height:1.2;margin-top:4px}
+.stop-addr-line{font-size:12px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:4px}
+.access-badge{border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;border:2px solid}
+.access-badge.rear{background:#fef3c7;border-color:#d97706}
+.access-badge.left,.access-badge.right{background:#eff6ff;border-color:#3b82f6}
+.access-icon{font-size:22px}
+.access-text{font-size:13px;font-weight:700}
+.access-sub{font-size:11px;color:var(--muted)}
+.products-title{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted)}
+.product-card{background:#fff;border-radius:16px;border:1px solid var(--border);padding:14px;display:flex;align-items:center;gap:12px}
+.product-icon{width:52px;height:52px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.product-qty{font-size:32px;font-weight:900;color:var(--primary)}
+.product-name{font-size:14px;font-weight:700;color:var(--text);line-height:1.2}
+.frag-warn{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px;font-size:12px;color:#9a3412;font-weight:600}
+.return-card{background:#fff7ed;border:2px solid var(--warning);border-radius:16px;padding:14px;display:flex;align-items:flex-start;gap:12px}
+.return-icon{font-size:24px;flex-shrink:0}
+.return-title{font-size:10px;font-weight:700;text-transform:uppercase;color:#92400e}
+.return-text{font-size:14px;font-weight:800;color:var(--text);line-height:1.3;margin-top:2px}
+
+/* ── Truck visual ── */
+.truck-visual{background:#fff;border-radius:16px;border:1px solid var(--border);padding:14px}
+.truck-label{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.truck-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
+.truck-section-label{text-align:center;font-size:8px;font-weight:700;color:var(--muted);padding:2px 0}
+.truck-slot{height:28px;border-radius:5px;background:#f3f4f6;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;transition:all .2s}
+.truck-slot.filled{background:#fee2e2;border-color:#fca5a5;color:var(--primary)}
+.truck-slot.active-stop{background:var(--primary);border-color:#be123c;color:#fff}
+.truck-slot.done{background:#dcfce7;border-color:#86efac;color:var(--success)}
+
+/* ── Big action button ── */
+.sticky-btn{position:sticky;bottom:0;background:rgba(248,249,250,.92);backdrop-filter:blur(8px);padding:12px 16px;border-top:1px solid var(--border)}
+.big-btn{width:100%;padding:16px;border-radius:16px;border:none;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
+.big-btn.primary{background:var(--primary);color:#fff}
+.big-btn.primary:active{background:#be123c}
+.big-btn.success{background:var(--success);color:#fff}
+.big-btn.success:active{background:#15803d}
+.big-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* Progress bar */
+.prog-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:8px}
+.prog-fill{height:100%;border-radius:2px;background:var(--primary);transition:width .4s}
+
+/* TW badge */
+.tw-badge{display:inline-flex;align-items:center;gap:4px;background:#eff6ff;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;color:#1d4ed8;margin-top:4px}
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="app-logo">D</div>
+  <div>
+    <div class="app-title">Damm — Conductor</div>
+    <div class="app-sub" id="header-sub">Selecciona la teva ruta</div>
+  </div>
+  <div class="selector-wrap">
+    <select class="route-sel" id="day-sel" onchange="onDayChange()">
+      <option value="">Selecciona dia</option>
+    </select>
+  </div>
+</div>
+
+<!-- SCREEN 0: Vehicle selector -->
+<div class="screen active sel-screen" id="screen-sel">
+  <div class="sel-day-tabs" id="day-tabs"></div>
+  <div class="sel-vehicle-list" id="vehicle-list"></div>
+  <div class="sticky-btn">
+    <button class="big-btn primary" id="btn-start-route" disabled onclick="startRoute()">
+      🚛 Iniciar ruta
+    </button>
+  </div>
+</div>
+
+<!-- SCREEN 1: Navigation + map -->
+<div class="screen" id="screen-nav">
+  <div class="nav-map">
+    <div id="leaflet-map"></div>
+    <div class="co2-badge">
+      <div class="co2-val" id="co2-saved">—</div>
+      <div class="co2-lbl">kg CO₂ estalviat</div>
+    </div>
+  </div>
+  <div class="nav-body">
+    <div class="stats-row" id="nav-stats"></div>
+    <div class="next-stop-card" id="next-stop-card"></div>
+    <div class="stop-list-mini" id="stop-list-mini"></div>
+  </div>
+  <div class="sticky-btn">
+    <button class="big-btn primary" onclick="goToStop()">
+      🧭 Iniciar parada
+    </button>
+  </div>
+</div>
+
+<!-- SCREEN 2: Active stop -->
+<div class="screen" id="screen-stop">
+  <div class="stop-screen" id="stop-body"></div>
+  <div class="sticky-btn">
+    <button class="big-btn success" id="btn-deliver" onclick="confirmDelivery()">
+      ✅ Productes entregats
+    </button>
+  </div>
+</div>
+
+<!-- SCREEN 3: Finished -->
+<div class="screen" id="screen-done">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px;text-align:center">
+    <div style="font-size:60px">🎉</div>
+    <div style="font-size:24px;font-weight:900;color:var(--text)">Ruta completada!</div>
+    <div style="font-size:14px;color:var(--muted)" id="done-stats"></div>
+    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:16px;padding:16px;width:100%">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#15803d">Impacte ambiental</div>
+      <div style="font-size:28px;font-weight:900;color:var(--success);margin:6px 0" id="done-co2"></div>
+      <div style="font-size:12px;color:var(--muted)">kg de CO₂ estalviats vs ruta no optimitzada</div>
+    </div>
+  </div>
+  <div class="sticky-btn">
+    <button class="big-btn primary" onclick="resetApp()">← Tornar a l'inici</button>
+  </div>
+</div>
+
+<script>
+let ALL_ROUTES = [];
+let currentRoutes = [];   // routes for selected day
+let selectedRoute = null; // the chosen vehicle route
+let sequence = [];        // stops + reload steps interleaved
+let currentIdx = 0;       // index into sequence (not just stops)
+let map = null;
+let mapMarkers = [];
+let routeLine = null;
+let selectedDay = null;
+
+// Build sequence with reload steps inserted between trips
+function buildSequence(route) {
+  const seq = [];
+  let lastTripNum = null;
+  let tripCount = 0;
+  route.stops.forEach(stop => {
+    if (lastTripNum !== null && stop.trip_num !== lastTripNum) {
+      // Insert warehouse return step
+      tripCount++;
+      seq.push({
+        type: 'reload',
+        trip_from: lastTripNum,
+        trip_to: stop.trip_num,
+        reload_num: tripCount,
+        depot: route.depot,
+      });
+    }
+    seq.push({ type: 'stop', ...stop });
+    lastTripNum = stop.trip_num;
+  });
+  return seq;
+}
+
+// Count only real stops (not reload steps) up to index
+function countStops(upTo) {
+  return sequence.slice(0, upTo).filter(s => s.type === 'stop').length;
+}
+function totalStops() {
+  return sequence.filter(s => s.type === 'stop').length;
+}
+
+const DAYS_ORDER = ["16/03/2026","17/03/2026","18/03/2026","19/03/2026","20/03/2026"];
+const WEEKDAYS   = {
+  "16/03/2026":"Dilluns","17/03/2026":"Dimarts","18/03/2026":"Dimecres",
+  "19/03/2026":"Dijous","20/03/2026":"Divendres"
+};
+
+async function init() {
+  ALL_ROUTES = await fetch('results_driver.json').then(r => r.json());
+  buildDayTabs();
+  selectDay(DAYS_ORDER[0]);
+}
+
+function buildDayTabs() {
+  const tabs = document.getElementById('day-tabs');
+  const sel  = document.getElementById('day-sel');
+  tabs.innerHTML = '';
+  DAYS_ORDER.forEach(d => {
+    const btn = document.createElement('button');
+    btn.className = 'sel-day-tab';
+    btn.textContent = WEEKDAYS[d] || d;
+    btn.onclick = () => selectDay(d);
+    btn.dataset.day = d;
+    tabs.appendChild(btn);
+    const opt = document.createElement('option');
+    opt.value = d; opt.textContent = WEEKDAYS[d] || d;
+    sel.appendChild(opt);
+  });
+}
+
+function selectDay(d) {
+  selectedDay = d;
+  selectedRoute = null;
+  document.querySelectorAll('.sel-day-tab').forEach(b => b.classList.toggle('active', b.dataset.day === d));
+  document.getElementById('day-sel').value = d;
+  currentRoutes = ALL_ROUTES.filter(r => r.date === d);
+  renderVehicleList();
+  document.getElementById('btn-start-route').disabled = true;
+}
+
+function onDayChange() {
+  selectDay(document.getElementById('day-sel').value);
+}
+
+function renderVehicleList() {
+  const el = document.getElementById('vehicle-list');
+  el.innerHTML = '';
+  if (!currentRoutes.length) {
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">Sense rutes per a aquest dia</div>';
+    return;
+  }
+  currentRoutes.forEach(route => {
+    const isSel = selectedRoute && selectedRoute.vehicle_id === route.vehicle_id;
+    const icon = route.vehicle_type === 'van_3' ? '🚐' : route.vehicle_type === 'truck_8' ? '🚛' : '🚚';
+    const card = document.createElement('div');
+    card.className = 'sel-vcard' + (isSel ? ' selected' : '');
+    card.innerHTML = `
+      <div class="sel-vicon">${icon}</div>
+      <div class="sel-vinfo">
+        <div class="sel-vname">${route.vehicle_id}</div>
+        <div class="sel-vsub">${route.vehicle_label} · ${route.driver_name.split(' ')[0]}</div>
+        <div class="sel-vstats">
+          <span class="sel-vstat">🛑 ${route.n_stops} parades</span>
+          <span class="sel-vstat">⏱ ${route.total_time_fmt}</span>
+          <span class="sel-vstat">⛽ ${route.total_fuel_l}L</span>
+        </div>
+      </div>`;
+    card.onclick = () => {
+      selectedRoute = route;
+      document.getElementById('btn-start-route').disabled = false;
+      renderVehicleList();
+    };
+    el.appendChild(card);
+  });
+}
+
+function startRoute() {
+  if (!selectedRoute) return;
+  sequence = buildSequence(selectedRoute);
+  currentIdx = 0;
+  showScreen('nav');
+  document.getElementById('header-sub').textContent = selectedRoute.vehicle_id + ' · ' + WEEKDAYS[selectedDay];
+  document.getElementById('co2-saved').textContent = selectedRoute.co2_saved_kg;
+  renderNavStats();
+  renderNextStopCard();
+  renderStopListMini();
+  initMap();
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+
+// ── Map ───────────────────────────────────────────────────────────────────────
+function initMap() {
+  if (map) { map.remove(); map = null; }
+  const depot = selectedRoute.depot;
+  map = L.map('leaflet-map', { zoomControl: true, attributionControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+  // Draw one polyline per trip segment (different color for each trip)
+  const tripColors = ['#e8001c','#1d4ed8','#15803d','#d97706','#7c3aed','#0891b2'];
+  const realStops = sequence.filter(s => s.type === 'stop');
+  let currentTripNum = null;
+  let segmentCoords = [[depot.lat, depot.lon]];
+  let tripIdx = 0;
+
+  realStops.forEach((stop, i) => {
+    if (currentTripNum !== null && stop.trip_num !== currentTripNum) {
+      // Close current segment back to depot
+      segmentCoords.push([depot.lat, depot.lon]);
+      L.polyline(segmentCoords, { color: tripColors[tripIdx % tripColors.length], weight: 3, opacity: 0.75 }).addTo(map);
+      tripIdx++;
+      segmentCoords = [[depot.lat, depot.lon]];
+    }
+    segmentCoords.push([stop.lat, stop.lon]);
+    currentTripNum = stop.trip_num;
+  });
+  // Last segment
+  segmentCoords.push([depot.lat, depot.lon]);
+  L.polyline(segmentCoords, { color: tripColors[tripIdx % tripColors.length], weight: 3, opacity: 0.75 }).addTo(map);
+
+  // Depot marker
+  const depotHtml = '<div style="background:#e8001c;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;border:2px solid #fff;box-shadow:0 2px 6px #0004">D</div>';
+  L.marker([depot.lat, depot.lon], { icon: L.divIcon({ html: depotHtml, className:'', iconAnchor:[14,14] }) }).addTo(map);
+
+  // Stop markers — numbered only by real stops
+  let stopCounter = 0;
+  sequence.forEach((item, seqI) => {
+    if (item.type !== 'stop') return;
+    stopCounter++;
+    const done = seqI < currentIdx && item.type === 'stop' ||
+                 (currentIdx > seqI);
+    const active = seqI === currentIdx;
+    const color = done ? '#16a34a' : active ? '#e8001c' : tripColors[(item.trip_num - 1) % tripColors.length];
+    const size = active ? 28 : 22;
+    const icon = L.divIcon({
+      html: `<div style="background:${color};color:#fff;border-radius:50%;width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:${active?12:10}px;border:2px solid #fff;box-shadow:0 2px 6px #0004">${done?'✓':stopCounter}</div>`,
+      className:'', iconAnchor:[size/2, size/2]
+    });
+    L.marker([item.lat, item.lon], { icon }).addTo(map);
+  });
+
+  // Fit map to all stops
+  const allCoords = [[depot.lat, depot.lon], ...realStops.map(s => [s.lat, s.lon])];
+  map.fitBounds(L.latLngBounds(allCoords), { padding: [30, 30] });
+}
+
+function renderNavStats() {
+  const r = selectedRoute;
+  const nReloads = r.n_trips - 1;
+  document.getElementById('nav-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-val">${r.total_km}</div><div class="stat-lbl">Km</div></div>
+    <div class="stat-card"><div class="stat-val">${r.total_time_fmt}</div><div class="stat-lbl">Temps</div></div>
+    <div class="stat-card"><div class="stat-val">${r.n_stops}${nReloads>0?'<span style="font-size:10px;color:var(--warning)"> +'+nReloads+'R</span>':''}</div><div class="stat-lbl">Parades</div></div>`;
+}
+
+function renderNextStopCard() {
+  if (currentIdx >= sequence.length) { renderDone(); return; }
+  const item = sequence[currentIdx];
+  const nDone = countStops(currentIdx);
+  const nTotal = totalStops();
+  const pct = nDone / nTotal * 100;
+
+  if (item.type === 'reload') {
+    document.getElementById('next-stop-card').innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="width:36px;height:36px;border-radius:10px;background:#d97706;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏭</div>
+        <div>
+          <div class="next-stop-label" style="color:#d97706">Recàrrega ${item.reload_num} — Tornar al magatzem</div>
+          <div class="next-stop-name" style="font-size:15px">Centre Damm Mollet</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">Finalitza la ruta ${item.trip_from} · Carrega la ruta ${item.trip_to}</div>
+      <div class="prog-bar" style="margin-top:8px"><div class="prog-fill" style="width:${pct}%;background:#d97706"></div></div>`;
+    document.getElementById('btn-start-route') && null;
+    // Change nav button to "Anar al magatzem"
+    const navBtn = document.querySelector('#screen-nav .sticky-btn .big-btn');
+    if (navBtn) { navBtn.textContent = '🏭 Anar al magatzem'; navBtn.onclick = goToReload; }
+  } else {
+    const s = item;
+    const tw = s.tw_close < 86399 ? `<div class="tw-badge">🕐 ${fmtTime(s.tw_open)}–${fmtTime(s.tw_close)}</div>` : '';
+    document.getElementById('next-stop-card').innerHTML = `
+      <div class="next-stop-label">Pròxima parada (${nDone+1}/${nTotal}) · Ruta ${s.trip_num}</div>
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-top:8px">
+        <div class="next-stop-num">${nDone+1}</div>
+        <div>
+          <div class="next-stop-name">${s.name}</div>
+          <div class="next-stop-addr">📍 ${s.city}</div>
+          ${tw}
+        </div>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>`;
+    const navBtn = document.querySelector('#screen-nav .sticky-btn .big-btn');
+    if (navBtn) { navBtn.textContent = '🧭 Iniciar parada'; navBtn.onclick = goToStop; }
+  }
+}
+
+function renderStopListMini() {
+  const el = document.getElementById('stop-list-mini');
+  let stopCounter = 0;
+  el.innerHTML = sequence.map((item, seqI) => {
+    if (item.type === 'reload') {
+      const done = seqI < currentIdx;
+      return `<div class="stop-mini ${done?'done':''}" style="background:${done?'#f0fdf4':'#fff7ed'};border-left:3px solid #d97706">
+        <div class="stop-mini-num" style="background:#d97706;color:#fff">${done?'✓':'↩'}</div>
+        <span style="flex:1;font-weight:700;color:#92400e">Recàrrega ${item.reload_num} — Magatzem</span>
+      </div>`;
+    }
+    stopCounter++;
+    const localNum = stopCounter;
+    const done = seqI < currentIdx;
+    const active = seqI === currentIdx;
+    const tripColor = ['#e8001c','#1d4ed8','#15803d','#d97706','#7c3aed'][((item.trip_num||1)-1)%5];
+    return `<div class="stop-mini ${done?'done':''} ${active?'active':''}" onclick="jumpToIdx(${seqI})">
+      <div class="stop-mini-num" style="${active?'background:'+tripColor+';color:#fff':done?'background:#16a34a;color:#fff':''}">${done?'✓':localNum}</div>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>
+      <span style="color:${tripColor};font-size:9px;font-weight:700">R${item.trip_num}</span>
+      <span style="color:var(--muted);font-size:10px">${item.boxes|0}cj</span>
+    </div>`;
+  }).join('');
+}
+
+function jumpToIdx(i) {
+  currentIdx = i;
+  initMap();
+  renderNextStopCard();
+  renderStopListMini();
+}
+
+function goToStop() {
+  if (currentIdx >= sequence.length) return;
+  if (sequence[currentIdx].type === 'reload') { goToReload(); return; }
+  showScreen('stop');
+  renderStopScreen();
+}
+
+function goToReload() {
+  showScreen('stop');
+  renderReloadScreen();
+}
+
+// ── Reload screen (return to warehouse) ──────────────────────────────────────
+function renderReloadScreen() {
+  const item = sequence[currentIdx];
+  const nextTrip = item.trip_to;
+  // Count stops in next trip
+  const nextTripStops = sequence.filter(s => s.type === 'stop' && s.trip_num === nextTrip);
+  document.getElementById('btn-deliver').textContent = '✅ Carregat — Continuar ruta ' + nextTrip;
+  document.getElementById('stop-body').innerHTML = `
+    <div style="background:#fff7ed;border:2px solid #d97706;border-radius:16px;padding:16px">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#92400e">Recàrrega ${item.reload_num}</div>
+      <div style="font-size:22px;font-weight:900;color:var(--text);margin-top:4px;line-height:1.2">Torna al magatzem</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:6px">Has completat la ruta ${item.trip_from}. Torna al Centre Damm Mollet per carregar la ruta ${nextTrip}.</div>
+    </div>
+    <div style="background:#fff;border-radius:16px;border:1px solid var(--border);padding:14px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Ruta ${nextTrip} — ${nextTripStops.length} parades a carregar</div>
+      ${nextTripStops.slice(0,5).map((s,i)=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:12px">
+          <div style="width:22px;height:22px;border-radius:6px;background:#1d4ed8;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">${i+1}</div>
+          <span style="flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</span>
+          <span style="color:var(--muted)">${s.city.split(' ')[0]}</span>
+          <span style="color:var(--primary);font-weight:700">${s.boxes|0}cj</span>
+        </div>`).join('')}
+      ${nextTripStops.length > 5 ? `<div style="font-size:11px;color:var(--muted);padding-top:6px">+${nextTripStops.length-5} parades més...</div>` : ''}
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:14px;padding:12px;font-size:12px;color:#15803d;font-weight:600">
+      🌱 Recàrrega optimitzada per IA — mínimes emissions CO₂ per viatge
+    </div>`;
+}
+
+// ── Stop screen ───────────────────────────────────────────────────────────────
+function renderStopScreen() {
+  const s = sequence[currentIdx];
+  if (s.type === 'reload') { renderReloadScreen(); return; }
+
+  const stopNum = countStops(currentIdx) + 1;
+  const nTotal  = totalStops();
+  const fragColor = s.fragility >= 3 ? '#991b1b' : s.fragility >= 2 ? '#92400e' : '#15803d';
+  const fragLabel = ['OK','Normal','⚠ Fràgil','🔴 Molt fràgil'][Math.min(s.fragility, 3)];
+  const accessType = s.fragility >= 2 ? 'rear' : (stopNum % 2 === 0 ? 'left' : 'right');
+  const accessLabels = {rear:{icon:'🚪',text:'Porta del Darrere',cls:'rear'}, left:{icon:'◀',text:'Lona Lateral Esquerra',cls:'left'}, right:{icon:'▶',text:'Lona Lateral Dreta',cls:'right'}};
+  const acc = accessLabels[accessType];
+  const tw = s.tw_close < 86399 ? `<div class="tw-badge">🕐 ${fmtTime(s.tw_open)}–${fmtTime(s.tw_close)}</div>` : '';
+  const section = ['A','B','C'][(stopNum - 1) % 3];
+  const tripColors = ['#e8001c','#1d4ed8','#15803d','#d97706','#7c3aed'];
+  const tripColor = tripColors[(s.trip_num - 1) % tripColors.length];
+
+  const fragWarn = s.fragility >= 2
+    ? `<div class="frag-warn">⚠ Producte fràgil — col·locar a dalt del palet, NO apilar pesats al damunt</div>` : '';
+
+  document.getElementById('btn-deliver').textContent = '✅ Productes entregats';
+  document.getElementById('stop-body').innerHTML = `
+    <div class="stop-header-card">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="stop-num-badge">Parada ${stopNum}/${nTotal}</div>
+        <div style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:${tripColor}22;color:${tripColor}">Ruta ${s.trip_num}</div>
+      </div>
+      <div class="stop-name-big">${s.name}</div>
+      <div class="stop-addr-line">📍 ${s.city}</div>
+      ${tw}
+    </div>
+    <div class="access-badge ${acc.cls}">
+      <div class="access-icon">${acc.icon}</div>
+      <div>
+        <div class="access-text">${acc.text}</div>
+        <div class="access-sub">Secció ${section} del camió · Zona almacén ${s.warehouse_zone}</div>
+      </div>
+    </div>
+    <div class="products-title">A entregar</div>
+    <div class="product-card">
+      <div class="product-icon">${s.fragility >= 2 ? '🍷' : s.boxes > 30 ? '🍺' : '📦'}</div>
+      <div>
+        <div class="product-qty">${s.boxes|0}×</div>
+        <div class="product-name">${s.n_pallets > 0 ? s.n_pallets + 'P estimats' : 'Bultos solts'}</div>
+        <div style="font-size:11px;color:${fragColor};font-weight:700;margin-top:2px">${fragLabel}</div>
+      </div>
+    </div>
+    ${fragWarn}
+    ${renderTruckMini(section)}`;
+}
+
+function renderTruckMini(activeSection) {
+  const sections = ['C','B','A']; // front to rear (display order)
+  const labels = {C:'Davant',B:'Mig',A:'Darrere'};
+  let html = '<div class="truck-visual"><div class="truck-label">Posició al camió</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
+  sections.forEach(sec => {
+    const isActive = sec === activeSection;
+    html += `<div style="text-align:center">
+      <div style="font-size:9px;font-weight:700;color:var(--muted);margin-bottom:3px">${labels[sec]}</div>`;
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 1; col++) {
+        html += `<div class="truck-slot ${isActive?'active-stop':Math.random()>0.5?'filled':''}" style="height:24px;border-radius:5px;margin:1px 0">${isActive?'⬡':''}</div>`;
+      }
+    }
+    html += '</div>';
+  });
+  html += '</div></div>';
+  return html;
+}
+
+function confirmDelivery() {
+  currentIdx++;
+  if (currentIdx >= sequence.length) {
+    renderDone();
+    return;
+  }
+  // If next is a reload step, go directly to reload screen (don't go back to map)
+  if (sequence[currentIdx].type === 'reload') {
+    renderReloadScreen();
+    return;
+  }
+  showScreen('nav');
+  initMap();
+  renderNextStopCard();
+  renderStopListMini();
+}
+
+function renderDone() {
+  showScreen('done');
+  document.getElementById('done-stats').textContent =
+    `${selectedRoute.n_stops} parades · ${selectedRoute.total_km} km · ${selectedRoute.total_fuel_l}L`;
+  document.getElementById('done-co2').textContent = selectedRoute.co2_saved_kg + ' kg';
+}
+
+function resetApp() {
+  selectedRoute = null;
+  sequence = [];
+  currentIdx = 0;
+  document.getElementById('header-sub').textContent = 'Selecciona la teva ruta';
+  document.getElementById('btn-start-route').disabled = true;
+  showScreen('sel');
+  renderVehicleList();
+}
+
+function fmtTime(s) {
+  if (!s && s !== 0) return '—';
+  return `${Math.floor(s/3600)}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}`;
+}
+
+init();
+</script>
+</body>
+</html>

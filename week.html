@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>VRP Semana · INTERHACK 2026</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Header ── */
+header { padding: 12px 24px; background: #1a1d27; border-bottom: 1px solid #2d3148; display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
+header h1 { font-size: 17px; font-weight: 700; color: #fff; }
+.day-tabs { display: flex; gap: 6px; }
+.day-tab { padding: 6px 14px; border-radius: 6px; border: 1px solid #3b4168; background: transparent; color: #94a3b8; cursor: pointer; font-size: 12px; font-weight: 600; transition: all .15s; }
+.day-tab:hover { background: #232638; color: #e2e8f0; }
+.day-tab.active { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+
+/* ── Layout ── */
+.layout { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Panel ── */
+.panel { width: 310px; background: #1a1d27; border-right: 1px solid #2d3148; display: flex; flex-direction: column; overflow: hidden; }
+.panel-top { padding: 14px; border-bottom: 1px solid #2d3148; flex-shrink: 0; }
+.kpi-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+.kpi { background: #232638; border-radius: 7px; padding: 8px 10px; }
+.kpi .val { font-size: 18px; font-weight: 700; color: #818cf8; }
+.kpi .lbl { font-size: 10px; color: #64748b; margin-top: 1px; }
+.kpi.fuel .val { color: #34d399; }
+.kpi.orders .val { color: #f59e0b; }
+
+.panel-scroll { flex: 1; overflow-y: auto; padding: 10px 14px; }
+.v-card { border-radius: 7px; background: #1e2133; border-left: 3px solid; margin-bottom: 8px; overflow: hidden; }
+.v-head { padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.v-head h3 { font-size: 12px; font-weight: 700; }
+.v-head .v-meta { font-size: 10px; color: #64748b; text-align: right; line-height: 1.5; }
+.v-body { display: none; padding: 0 10px 8px; }
+.v-body.open { display: block; }
+.trip-block { margin-top: 6px; }
+.trip-label { font-size: 10px; color: #64748b; margin-bottom: 3px; }
+.trip-label span { color: #f472b6; }
+.stop-row { font-size: 10px; padding: 3px 0; border-bottom: 1px solid #2d3148; display: flex; gap: 6px; align-items: baseline; }
+.stop-row:last-child { border: none; }
+.stop-n { color: #4b5563; min-width: 14px; }
+.stop-name { flex: 1; color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stop-city { color: #64748b; min-width: 60px; font-size: 9px; }
+.stop-boxes { color: #a78bfa; min-width: 32px; text-align: right; }
+
+/* ── Canvas ── */
+.canvas-wrap { flex: 1; position: relative; overflow: hidden; }
+canvas { display: block; width: 100%; height: 100%; }
+#tooltip { position: absolute; background: #1e2030ee; border: 1px solid #3b4168; border-radius: 8px; padding: 9px 13px; font-size: 11px; pointer-events: none; opacity: 0; transition: opacity .12s; max-width: 210px; line-height: 1.7; box-shadow: 0 4px 20px rgba(0,0,0,.5); }
+#tooltip b { color: #fff; font-size: 12px; }
+#tooltip span { color: #94a3b8; }
+
+.legend { position: absolute; bottom: 14px; right: 14px; background: #1a1d27cc; border: 1px solid #2d3148; border-radius: 8px; padding: 10px 14px; font-size: 11px; }
+.legend-title { color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.li { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+.li-line { width: 22px; height: 3px; border-radius: 2px; }
+.li-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>VRP · Semana 16–20 Mar 2026</h1>
+  <div class="day-tabs" id="tabs"></div>
+</header>
+
+<div class="layout">
+  <div class="panel">
+    <div class="panel-top">
+      <div class="kpi-grid" id="kpis"></div>
+    </div>
+    <div class="panel-scroll" id="vehicle-list"></div>
+  </div>
+  <div class="canvas-wrap">
+    <canvas id="c"></canvas>
+    <div id="tooltip"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+</div>
+
+<script>
+const PALETTE = ['#818cf8','#34d399','#f59e0b','#f472b6','#38bdf8','#a78bfa',
+                 '#fb7185','#6ee7b7','#fcd34d','#c084fc','#67e8f9','#86efac',
+                 '#fda4af','#d8b4fe','#a5f3fc','#bbf7d0'];
+
+let DATA = [], currentDay = 0, selectedVehicle = null;
+
+async function init() {
+  DATA = await fetch('results_week.json').then(r => r.json());
+  buildTabs();
+  renderDay(0);
+}
+
+function buildTabs() {
+  const el = document.getElementById('tabs');
+  DATA.forEach((d, i) => {
+    const t = document.createElement('button');
+    t.className = 'day-tab' + (i===0?' active':'');
+    t.textContent = d.weekday;
+    t.onclick = () => { currentDay = i; document.querySelectorAll('.day-tab').forEach((x,j)=>x.classList.toggle('active',j===i)); renderDay(i); };
+    el.appendChild(t);
+  });
+}
+
+function fmt(s) { const h=Math.floor(s/3600),m=Math.floor((s%3600)/60); return `${h}h ${String(m).padStart(2,'0')}m`; }
+
+function renderDay(idx) {
+  const day = DATA[idx];
+  renderKPIs(day);
+  renderVehicles(day);
+  drawGraph(day);
+}
+
+function renderKPIs(day) {
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi orders"><div class="val">${day.n_orders}</div><div class="lbl">Pedidos</div></div>
+    <div class="kpi"><div class="val">${day.n_vehicles}</div><div class="lbl">Vehículos</div></div>
+    <div class="kpi"><div class="val">${day.n_trips}</div><div class="lbl">Viajes</div></div>
+    <div class="kpi"><div class="val">${fmt(day.total_time_s)}</div><div class="lbl">Tiempo total</div></div>
+    <div class="kpi fuel"><div class="val">${day.total_fuel_l.toFixed(0)}L</div><div class="lbl">Combustible</div></div>
+    <div class="kpi"><div class="val">${day.n_reloads}</div><div class="lbl">Recargas</div></div>
+  `;
+}
+
+function renderVehicles(day) {
+  const el = document.getElementById('vehicle-list');
+  el.innerHTML = '';
+  day.routes.forEach((r, ri) => {
+    const color = PALETTE[ri % PALETTE.length];
+    const allStops = r.trips.flatMap(t => t.stops);
+    const card = document.createElement('div');
+    card.className = 'v-card';
+    card.style.borderColor = color;
+
+    const tripsHtml = r.trips.map((t,ti) => `
+      <div class="trip-block">
+        <div class="trip-label">Viaje ${t.trip_number}${t.is_reload?` <span>(RECARGA +30min)</span>`:''} · ${fmt(t.total_time_seconds)} · ${t.total_fuel_litres}L</div>
+        ${t.stops.map((s,si)=>`
+          <div class="stop-row">
+            <span class="stop-n">${si+1}</span>
+            <span class="stop-name" title="${s.client_name}">${s.client_name}</span>
+            <span class="stop-city">${s.city.split(' ')[0]}</span>
+            <span class="stop-boxes">${s.boxes|0}cj</span>
+          </div>`).join('')}
+      </div>`).join('');
+
+    const isActive = !selectedVehicle || selectedVehicle === r.vehicle_id;
+    card.style.opacity = isActive ? '1' : '0.3';
+    card.style.transition = 'opacity .2s';
+    card.innerHTML = `
+      <div class="v-head" onclick="selectVehicle('${r.vehicle_id}')">
+        <h3 style="color:${color}">${r.vehicle_id} · ${r.driver_name.split(' ')[0]}</h3>
+        <div class="v-meta">${fmt(r.total_time_seconds)}<br>${r.total_fuel_litres}L · ${allStops.length} paradas</div>
+      </div>
+      <div class="v-body ${selectedVehicle===r.vehicle_id?'open':''}">${tripsHtml}</div>`;
+    el.appendChild(card);
+  });
+}
+
+// ── Graph ─────────────────────────────────────────────────────────────────────
+function drawGraph(day) {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width  = canvas.offsetWidth  * devicePixelRatio;
+  const H = canvas.height = canvas.offsetHeight * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  const cW = canvas.offsetWidth, cH = canvas.offsetHeight;
+  ctx.clearRect(0, 0, cW, cH);
+
+  // Collect all unique nodes
+  const depot = day.depot;
+  const nodeMap = { DEPOT: { id:'DEPOT', name:depot.name, lat:depot.lat, lon:depot.lon, type:'depot' } };
+  day.routes.forEach(r => r.trips.forEach(t => t.stops.forEach(s => {
+    nodeMap[s.client_id] = { id:s.client_id, name:s.client_name, lat:s.lat, lon:s.lon, city:s.city, boxes:s.boxes, type:'stop' };
+  })));
+  const nodes = Object.values(nodeMap);
+
+  // Projection
+  const lats = nodes.map(n=>n.lat), lons = nodes.map(n=>n.lon);
+  const pad = 50;
+  const minLat=Math.min(...lats), maxLat=Math.max(...lats);
+  const minLon=Math.min(...lons), maxLon=Math.max(...lons);
+  const proj = (lat,lon) => ({
+    x: pad + (lon-minLon)/(maxLon-minLon||1)*(cW-pad*2),
+    y: cH-pad - (lat-minLat)/(maxLat-minLat||1)*(cH-pad*2)
+  });
+  const pos = {};
+  nodes.forEach(n => pos[n.id] = proj(n.lat, n.lon));
+
+  // Qué nodos pertenecen al vehículo seleccionado
+  const selStops = new Set();
+  if (selectedVehicle) {
+    const selRoute = day.routes.find(r => r.vehicle_id === selectedVehicle);
+    if (selRoute) selRoute.trips.forEach(t => t.stops.forEach(s => selStops.add(s.client_id)));
+  }
+
+  // Draw edges per vehicle — primero los apagados, luego el seleccionado encima
+  const drawRoutes = (onlySelected) => {
+    day.routes.forEach((r, ri) => {
+      const isSelected = !selectedVehicle || r.vehicle_id === selectedVehicle;
+      if (onlySelected !== isSelected) return;
+      const color = PALETTE[ri % PALETTE.length];
+      r.trips.forEach(trip => {
+        const seq = ['DEPOT', ...trip.stops.map(s=>s.client_id), 'DEPOT'];
+        ctx.strokeStyle = color;
+        ctx.lineWidth = trip.is_reload ? (isSelected?2:1) : (isSelected?3:1.5);
+        ctx.setLineDash(trip.is_reload ? [5,4] : []);
+        ctx.globalAlpha = isSelected ? 0.85 : 0.1;
+        for (let i=0; i<seq.length-1; i++) {
+          const a=pos[seq[i]], b=pos[seq[i+1]];
+          if (!a||!b) continue;
+          const mx=(a.x+b.x)/2, my=(a.y+b.y)/2-12;
+          ctx.beginPath(); ctx.moveTo(a.x,a.y);
+          ctx.quadraticCurveTo(mx,my,b.x,b.y); ctx.stroke();
+          if (isSelected) {
+            const t=0.62;
+            const qx=(1-t)**2*a.x+2*(1-t)*t*mx+t*t*b.x;
+            const qy=(1-t)**2*a.y+2*(1-t)*t*my+t*t*b.y;
+            const dx=2*((1-t)*(mx-a.x)+t*(b.x-mx));
+            const dy=2*((1-t)*(my-a.y)+t*(b.y-my));
+            ctx.save(); ctx.translate(qx,qy); ctx.rotate(Math.atan2(dy,dx));
+            ctx.fillStyle=color; ctx.globalAlpha=0.95;
+            ctx.beginPath(); ctx.moveTo(7,0); ctx.lineTo(-4,3.5); ctx.lineTo(-4,-3.5); ctx.closePath(); ctx.fill();
+            ctx.restore();
+          }
+        }
+      });
+    });
+  };
+  drawRoutes(false);  // apagadas primero
+  drawRoutes(true);   // encima las activas
+  ctx.setLineDash([]); ctx.globalAlpha=1;
+
+  // Draw nodes
+  nodes.forEach(n => {
+    const {x,y} = pos[n.id];
+    const isDepot = n.type==='depot';
+    const inSel = !selectedVehicle || isDepot || selStops.has(n.id);
+    const r = isDepot ? 12 : 7;
+    ctx.globalAlpha = inSel ? 1 : 0.15;
+    ctx.shadowColor = isDepot ? '#f59e0b99' : '#6366f155'; ctx.shadowBlur = inSel ? (isDepot?18:8) : 0;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle = isDepot ? '#f59e0b' : '#6366f1'; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = isDepot?2.5:1.5; ctx.stroke();
+    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  });
+
+  // Legend
+  const legend = document.getElementById('legend');
+  const vLines = day.routes.map((r,ri) =>
+    `<div class="li legend-v" data-vid="${r.vehicle_id}" style="cursor:pointer;border-radius:4px;padding:2px 4px" onclick="selectVehicle('${r.vehicle_id}')">
+      <div class="li-line" style="background:${PALETTE[ri%PALETTE.length]}"></div>
+      <span style="color:${PALETTE[ri%PALETTE.length]};font-size:10px">${r.vehicle_id}</span>
+    </div>`
+  ).join('');
+  legend.innerHTML = `<div class="legend-title">Vehículos</div>
+    <div class="li"><div class="li-dot" style="background:#f59e0b"></div><span>Almacén</span></div>
+    <div class="li"><div class="li-dot" style="background:#6366f1"></div><span>Parada</span></div>
+    <div style="border-top:1px solid #2d3148;margin:6px 0"></div>${vLines}`;
+
+  // Tooltip
+  canvas.onmousemove = e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    let closest=null, minD=18;
+    for (const [id,p] of Object.entries(pos)) {
+      const d=Math.hypot(p.x-mx,p.y-my);
+      if (d<minD){minD=d;closest=id;}
+    }
+    const tt=document.getElementById('tooltip');
+    if (closest) {
+      const n=nodeMap[closest];
+      tt.innerHTML = n.type==='depot'
+        ? `<b>${n.name}</b><br><span>Almacén · punto de partida</span>`
+        : `<b>${n.name}</b><br><span>Ciudad: </span>${n.city}<br><span>Cajas: </span>${n.boxes|0}`;
+      tt.style.left=(e.clientX-rect.left+14)+'px';
+      tt.style.top=(e.clientY-rect.top-10)+'px';
+      tt.style.opacity='1';
+    } else { tt.style.opacity='0'; }
+  };
+  canvas.onmouseleave = () => document.getElementById('tooltip').style.opacity='0';
+}
+
+function selectVehicle(vid) {
+  selectedVehicle = (selectedVehicle === vid) ? null : vid;  // toggle
+  renderDay(currentDay);
+}
+
+// Reset selección al cambiar de día
+const _origBuildTabs = buildTabs;
+function buildTabs() {
+  const el = document.getElementById('tabs');
+  DATA.forEach((d, i) => {
+    const t = document.createElement('button');
+    t.className = 'day-tab' + (i===0?' active':'');
+    t.textContent = d.weekday;
+    t.onclick = () => {
+      currentDay = i;
+      selectedVehicle = null;
+      document.querySelectorAll('.day-tab').forEach((x,j)=>x.classList.toggle('active',j===i));
+      renderDay(i);
+    };
+    el.appendChild(t);
+  });
+}
+
+window.addEventListener('resize', () => renderDay(currentDay));
+init();
+</script>
+</body>
+</html>

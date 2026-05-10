@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Plataforma Almacén DDI Mollet · INTERHACK 2026</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0c0f1a;color:#e2e8f0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Header ── */
+header{padding:10px 20px;background:#111827;border-bottom:1px solid #1e2d45;display:flex;align-items:center;gap:14px;flex-shrink:0}
+header h1{font-size:14px;font-weight:700;color:#fff;white-space:nowrap}
+header h1 span{color:#f59e0b}
+.tag{font-size:9px;padding:2px 7px;border-radius:10px;background:#1e3a1a;color:#4ade80;font-weight:700;letter-spacing:.5px}
+.day-tabs{display:flex;gap:4px}
+.day-tab{padding:5px 12px;border-radius:6px;border:1px solid #2d3a55;background:transparent;color:#64748b;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s}
+.day-tab:hover{background:#1e2d45;color:#e2e8f0}
+.day-tab.active{background:#f59e0b;border-color:#f59e0b;color:#0c0f1a}
+.hkpis{display:flex;gap:18px;margin-left:auto}
+.hk{text-align:right}.hk .v{font-size:15px;font-weight:700;color:#f59e0b}.hk .l{font-size:9px;color:#475569;text-transform:uppercase;letter-spacing:.5px}
+.hk.pal .v{color:#34d399}.hk.mix .v{color:#fb923c}.hk.alt .v{color:#f43f5e}
+
+/* ── Layout ── */
+.layout{display:flex;flex:1;overflow:hidden}
+
+/* ── Floor plan (main) ── */
+.wh-main{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+
+/* Docks row */
+.docks-row{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.dock{background:#161d2e;border-radius:6px 6px 0 0;padding:6px 4px;text-align:center;border:1px solid #1e2d45;border-bottom:none;transition:all .2s}
+.dock.active{border-color:var(--zc);background:#1a2540}
+.dock-icon{font-size:14px;margin-bottom:1px}
+.dock-lbl{font-size:8px;font-weight:700;color:#64748b}
+.dock.active .dock-lbl{color:var(--zc)}
+.dock-n{font-size:9px;color:#334155}
+.dock.active .dock-n{color:#94a3b8}
+
+/* Zone grid */
+.zone-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+
+/* Zone tile */
+.zt{border-radius:10px;background:#161d2e;border:2px solid #1e2d45;padding:14px;cursor:pointer;transition:all .2s;position:relative;min-height:148px;display:flex;flex-direction:column;gap:6px}
+.zt:hover{transform:translateY(-2px);box-shadow:0 6px 20px #0006}
+.zt.sel{border-color:var(--zc);box-shadow:0 0 0 1px var(--zc)44}
+.zt.dim{opacity:.28}
+
+.zt-top{display:flex;align-items:flex-start;gap:8px}
+.zt-letter{width:34px;height:34px;border-radius:8px;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--zc);background:var(--zc)1a}
+.zt-meta{flex:1}
+.zt-name{font-size:12px;font-weight:700;color:#e2e8f0}
+.zt-cats{font-size:9px;color:#475569;margin-top:2px}
+.zt-count{text-align:right}
+.zt-today{font-size:18px;font-weight:800;color:var(--zc)}
+.zt-total{font-size:9px;color:#334155}
+
+/* Pill alerts */
+.pills{display:flex;gap:3px;flex-wrap:wrap}
+.pill{padding:1px 6px;border-radius:4px;font-size:8px;font-weight:700}
+.p-frag{background:#450a0a;color:#fca5a5}
+.p-mix{background:#3b1d08;color:#fed7aa}
+.p-delta{background:#1a0a2e;color:#c4b5fd}
+.p-ok{background:#052e16;color:#86efac}
+
+/* Category bar */
+.cat-stack{display:flex;height:8px;border-radius:4px;overflow:hidden;gap:1px}
+.cat-seg{height:100%;transition:width .3s;flex-shrink:0}
+.cat-legend{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.cat-leg-item{font-size:8px;display:flex;align-items:center;gap:3px;color:#64748b}
+.cat-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+
+/* Pallet ring */
+.pal-ring{position:absolute;top:10px;right:10px;text-align:center}
+.pal-num{font-size:15px;font-weight:800;color:var(--zc);line-height:1}
+.pal-lbl{font-size:7px;color:#334155}
+
+/* Mixed zone */
+.mix-zone{background:#1c1208;border:1px dashed #92400e;border-radius:10px;padding:12px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .2s}
+.mix-zone:hover,.mix-zone.sel{border-color:#d97706;background:#251608}
+.mix-icon{font-size:22px;flex-shrink:0}
+.mix-body{flex:1}
+.mix-title{font-size:12px;font-weight:700;color:#d97706}
+.mix-sub{font-size:10px;color:#78350f;margin-top:2px}
+.mix-cats-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.mix-cpill{font-size:9px;padding:1px 7px;border-radius:4px;background:#451a03;color:#fb923c;font-weight:600}
+.mix-right{text-align:right;flex-shrink:0}
+.mix-num{font-size:22px;font-weight:800;color:#d97706}
+.mix-num-lbl{font-size:9px;color:#78350f}
+
+.entrance{text-align:center;padding:5px;font-size:9px;color:#1e2d45;font-weight:700;letter-spacing:3px;text-transform:uppercase}
+
+/* ── Detail panel ── */
+.dp{width:0;background:#0f1623;border-left:1px solid #1e2d45;display:flex;flex-direction:column;overflow:hidden;transition:width .25s;flex-shrink:0}
+.dp.open{width:340px}
+.dp-hdr{padding:12px 14px;border-bottom:1px solid #1e2d45;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.dp-badge{width:30px;height:30px;border-radius:7px;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center}
+.dp-htitle{flex:1;font-size:13px;font-weight:700;color:#e2e8f0}
+.dp-close{cursor:pointer;color:#475569;font-size:16px;line-height:1;padding:2px 6px;border-radius:4px}
+.dp-close:hover{background:#1e2d45;color:#94a3b8}
+.dp-scroll{flex:1;overflow-y:auto;padding:12px}
+.dp-scroll::-webkit-scrollbar{width:3px}
+.dp-scroll::-webkit-scrollbar-thumb{background:#2d3a55;border-radius:2px}
+
+/* Detail content */
+.kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
+.kpi{background:#161d2e;border-radius:6px;padding:8px;text-align:center}
+.kpi .v{font-size:16px;font-weight:700;color:#818cf8}.kpi .l{font-size:9px;color:#475569}
+.kpi.g .v{color:#34d399}.kpi.o .v{color:#fb923c}.kpi.r .v{color:#f43f5e}
+
+.sec-title{font-size:9px;color:#475569;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin:10px 0 5px}
+
+.stable-bar-wrap{margin-bottom:10px}
+.stable-note{font-size:9px;color:#334155;margin-bottom:4px}
+
+.order-row{display:flex;flex-direction:column;gap:2px;padding:6px 0;border-bottom:1px solid #1a2233}
+.order-row:last-child{border:none}
+.or-head{display:flex;align-items:center;gap:5px}
+.or-num{font-size:9px;color:#334155;min-width:16px}
+.or-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.or-name{flex:1;font-size:10px;font-weight:600;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.or-city{font-size:9px;color:#475569;white-space:nowrap}
+.or-boxes{font-size:9px;color:#6366f1;min-width:28px;text-align:right}
+.or-tags{display:flex;gap:3px;flex-wrap:wrap;padding-left:21px}
+.or-tag{font-size:8px;padding:1px 5px;border-radius:3px;background:#1e2d45;color:#64748b}
+.or-tag.m{background:#3b1d08;color:#d97706}
+.or-tag.d{background:#1a0a2e;color:#c4b5fd}
+.or-tag.tw{color:#60a5fa;background:#0c1a2e}
+
+/* Drift note */
+.drift-box{background:#0f172a;border:1px solid #1e3a5f;border-radius:6px;padding:8px;font-size:10px;color:#60a5fa;margin-bottom:10px;line-height:1.6}
+
+*{scrollbar-width:thin;scrollbar-color:#2d3a55 transparent}
+
+/* Category colours */
+:root{
+  --beer:#854d0e;--water:#164e63;--wine:#4c1d95;--softdrink:#065f46;
+  --dairy:#1e3a5f;--coffee:#292524;--sweetener:#3b0764;--packaging:#1a2e05;
+  --empty_pkg:#374151;--generic:#1f2937;--utensil:#1c1917;
+  --beer-t:#fde68a;--water-t:#a5f3fc;--wine-t:#c4b5fd;--softdrink-t:#6ee7b7;
+  --dairy-t:#93c5fd;--coffee-t:#d6d3d1;--sweetener-t:#f0abfc;--packaging-t:#bef264;
+  --empty_pkg-t:#9ca3af;--generic-t:#9ca3af;--utensil-t:#d6d3d1;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Plataforma <span>DDI Mollet</span></h1>
+  <span class="tag">CLUSTERS ESTABLES</span>
+  <div class="day-tabs" id="tabs"></div>
+  <div class="hkpis">
+    <div class="hk"><div class="v" id="hk-orders">—</div><div class="l">Pedidos</div></div>
+    <div class="hk pal"><div class="v" id="hk-pal">—</div><div class="l">Palets</div></div>
+    <div class="hk mix"><div class="v" id="hk-mix">—</div><div class="l">Zona mixta</div></div>
+    <div class="hk alt"><div class="v" id="hk-alt">—</div><div class="l">Alertas Δ</div></div>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="wh-main" id="wh-main"></div>
+  <div class="dp" id="dp">
+    <div class="dp-hdr">
+      <div class="dp-badge" id="dp-badge">?</div>
+      <div class="dp-htitle" id="dp-title">—</div>
+      <div class="dp-close" onclick="closeDetail()">✕</div>
+    </div>
+    <div class="dp-scroll" id="dp-body"></div>
+  </div>
+</div>
+
+<script>
+const ZONE_COLORS = {A:'#6366f1',B:'#06b6d4',C:'#10b981',D:'#f59e0b',E:'#f43f5e',F:'#a855f7',G:'#ec4899',H:'#14b8a6'};
+const CAT_BG = {beer:'#854d0e',water:'#164e63',wine:'#4c1d95',softdrink:'#065f46',dairy:'#1e3a5f',coffee:'#292524',sweetener:'#3b0764',packaging:'#1a2e05',empty_pkg:'#374151',generic:'#1f2937',utensil:'#1c1917'};
+const CAT_FG = {beer:'#fde68a',water:'#a5f3fc',wine:'#c4b5fd',softdrink:'#6ee7b7',dairy:'#93c5fd',coffee:'#d6d3d1',sweetener:'#f0abfc',packaging:'#bef264',empty_pkg:'#9ca3af',generic:'#9ca3af',utensil:'#d6d3d1'};
+const CAT_LBL = {beer:'Cerveza',water:'Agua',wine:'Vino',softdrink:'Refresco',dairy:'Lácteo',coffee:'Café',sweetener:'Edulcorante',packaging:'Embalaje',empty_pkg:'Envase vacío',generic:'Genérico',utensil:'Utensilio'};
+
+let DATA=[], currentDay=0, selectedZone=null;
+
+async function init(){
+  DATA = await fetch('results_warehouse.json').then(r=>r.json());
+  buildTabs(); renderDay(0);
+}
+
+function buildTabs(){
+  const el=document.getElementById('tabs');
+  DATA.forEach((d,i)=>{
+    const t=document.createElement('button');
+    t.className='day-tab'+(i===0?' active':'');
+    t.textContent=d.weekday;
+    t.onclick=()=>{
+      currentDay=i; selectedZone=null;
+      document.querySelectorAll('.day-tab').forEach((x,j)=>x.classList.toggle('active',j===i));
+      renderDay(i); closeDetail();
+    };
+    el.appendChild(t);
+  });
+}
+
+function renderDay(idx){
+  const day=DATA[idx];
+  // Count delta alerts
+  let nDelta=0;
+  Object.values(day.zones).forEach(z=>z.orders.forEach(o=>{if(o.delta&&o.delta.flags.length)nDelta++;}));
+  document.getElementById('hk-orders').textContent=day.total_orders;
+  document.getElementById('hk-pal').textContent=day.total_pallets+'P';
+  document.getElementById('hk-mix').textContent=day.mixed_zone.n_items;
+  document.getElementById('hk-alt').textContent=nDelta;
+  renderFloor(day);
+}
+
+// ── Floor plan ────────────────────────────────────────────────────────────────
+function renderFloor(day){
+  const main=document.getElementById('wh-main');
+  main.innerHTML='';
+
+  const zones=day.zones;
+  const maxPal=Math.max(...Object.values(zones).map(z=>z.n_pallets),1);
+
+  // Docks
+  const docksRow=document.createElement('div');
+  docksRow.className='docks-row';
+  'ABCDEFGH'.split('').forEach(z=>{
+    const zd=zones[z]; const color=ZONE_COLORS[z];
+    const active=zd&&zd.n_clients_today>0;
+    const d=document.createElement('div');
+    d.className='dock'+(active?' active':'');
+    d.style.setProperty('--zc',color);
+    d.innerHTML=`<div class="dock-icon">${active?'🚚':'—'}</div><div class="dock-lbl">Zona ${z}</div><div class="dock-n">${active?zd.n_clients_today+' ped.':'inactivo'}</div>`;
+    d.onclick=()=>selectZone(z);
+    docksRow.appendChild(d);
+  });
+  main.appendChild(docksRow);
+
+  // Zone grid
+  const grid=document.createElement('div');
+  grid.className='zone-grid';
+
+  'ABCDEFGH'.split('').forEach(zl=>{
+    const z=zones[zl]; if(!z) return;
+    const color=ZONE_COLORS[zl];
+    const active=z.n_clients_today>0;
+    const isSel=selectedZone===zl;
+    const nDelta=z.orders.filter(o=>o.delta&&o.delta.flags.length).length;
+
+    const tile=document.createElement('div');
+    tile.className='zt'+(isSel?' sel':'')+(selectedZone&&!isSel?' dim':'');
+    tile.style.cssText=`--zc:${color};border-color:${isSel?color:'#1e2d45'}`;
+
+    // Category stacked bar (stable profile)
+    const stableTotal=Object.values(z.stable_fracs||{}).reduce((s,v)=>s+v,0)||1;
+    const topCats=Object.entries(z.stable_fracs||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const stackSegs=topCats.map(([cat,frac])=>{
+      const pct=(frac/stableTotal*100).toFixed(1);
+      return `<div class="cat-seg" style="width:${pct}%;background:${CAT_BG[cat]||'#1e2d45'}" title="${CAT_LBL[cat]||cat}: ${pct}%"></div>`;
+    }).join('');
+    const legendItems=topCats.slice(0,3).map(([cat])=>
+      `<div class="cat-leg-item"><div class="cat-dot" style="background:${CAT_BG[cat]}"></div>${CAT_LBL[cat]||cat}</div>`
+    ).join('');
+
+    // Today's category bar
+    const todayTotal=z.cat_summary.reduce((s,c)=>s+c.pallets,0)||1;
+    const todayStack=z.cat_summary.slice(0,5).map(c=>{
+      const pct=(c.pallets/todayTotal*100).toFixed(1);
+      return `<div class="cat-seg" style="width:${pct}%;background:${CAT_BG[c.category]||'#1e2d45'}" title="${CAT_LBL[c.category]}: ${c.pallets}P"></div>`;
+    }).join('');
+
+    // Pills
+    const pills=[];
+    if(z.has_fragile) pills.push(`<span class="pill p-frag">⚠ Frágil</span>`);
+    if(z.n_mixed)     pills.push(`<span class="pill p-mix">🔀 ${z.n_mixed}</span>`);
+    if(nDelta)        pills.push(`<span class="pill p-delta">Δ ${nDelta} alerta${nDelta>1?'s':''}</span>`);
+    if(active&&!z.has_fragile&&!nDelta) pills.push(`<span class="pill p-ok">✓ OK</span>`);
+
+    tile.innerHTML=`
+      <div class="zt-top">
+        <div class="zt-letter">${zl}</div>
+        <div class="zt-meta">
+          <div class="zt-name">Zona ${zl}</div>
+          <div class="zt-cats">${(z.stable_primary||[]).map(c=>CAT_LBL[c]||c).join(' · ')}</div>
+        </div>
+        <div class="zt-count">
+          <div class="zt-today">${active?z.n_clients_today:'—'}</div>
+          <div class="zt-total">${z.n_clients_total} clientes</div>
+        </div>
+      </div>
+      <div class="pills">${pills.join('')}</div>
+      <div class="pal-ring"><div class="pal-num">${active?z.n_pallets+'P':'—'}</div><div class="pal-lbl">hoy</div></div>
+      ${active?`
+        <div style="margin-top:auto">
+          <div style="font-size:8px;color:#334155;margin-bottom:2px">Perfil estable</div>
+          <div class="cat-stack">${stackSegs}</div>
+          <div style="font-size:8px;color:#334155;margin:4px 0 2px">Hoy</div>
+          <div class="cat-stack">${todayStack}</div>
+          <div class="cat-legend">${legendItems}</div>
+        </div>`:'<div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;color:#1e2d45">Sin pedidos</div>'}`;
+
+    tile.onclick=()=>selectZone(zl);
+    grid.appendChild(tile);
+  });
+  main.appendChild(grid);
+
+  // Mixed zone
+  const mx=day.mixed_zone;
+  const mxSel=selectedZone==='MIXED';
+  const mxEl=document.createElement('div');
+  mxEl.className='mix-zone'+(mxSel?' sel':'');
+  const mxCatPills=Object.entries(mx.by_category).slice(0,7).map(([cat,v])=>
+    `<div class="mix-cpill" style="color:${CAT_FG[cat]}">${CAT_LBL[cat]||cat} · ${v.boxes}cj</div>`
+  ).join('');
+  mxEl.innerHTML=`
+    <div class="mix-icon">🔀</div>
+    <div class="mix-body">
+      <div class="mix-title">Zona Mixta — Productos menores</div>
+      <div class="mix-sub">Categorías no dominantes de cada cliente · recogida rápida · ${mx.total_pallets}P equiv.</div>
+      <div class="mix-cats-row">${mxCatPills}</div>
+    </div>
+    <div class="mix-right">
+      <div class="mix-num">${mx.n_items}</div>
+      <div class="mix-num-lbl">items</div>
+    </div>`;
+  mxEl.onclick=()=>selectZone('MIXED');
+  main.appendChild(mxEl);
+
+  main.appendChild(Object.assign(document.createElement('div'),{className:'entrance',textContent:'▼  Entrada / Salida vehículos  ▼'}));
+}
+
+// ── Selection & detail ────────────────────────────────────────────────────────
+function selectZone(z){
+  selectedZone = selectedZone===z ? null : z;
+  renderFloor(DATA[currentDay]);
+  if(selectedZone) renderDetail(DATA[currentDay], selectedZone);
+  else closeDetail();
+}
+
+function closeDetail(){
+  selectedZone=null;
+  document.getElementById('dp').classList.remove('open');
+  renderFloor(DATA[currentDay]);
+}
+
+function renderDetail(day, z){
+  document.getElementById('dp').classList.add('open');
+  if(z==='MIXED'){renderMixedDetail(day);return;}
+
+  const zd=day.zones[z]; if(!zd) return;
+  const color=ZONE_COLORS[z];
+  document.getElementById('dp-badge').style.cssText=`background:${color}22;color:${color}`;
+  document.getElementById('dp-badge').textContent=z;
+  document.getElementById('dp-title').textContent=`Zona ${z} — ${(zd.stable_primary||[]).map(c=>CAT_LBL[c]||c).join(' + ')}`;
+
+  const body=document.getElementById('dp-body');
+  body.innerHTML='';
+
+  // KPIs
+  const nDelta=zd.orders.filter(o=>o.delta&&o.delta.flags.length).length;
+  appendEl(body,'div','kpi-row',`
+    <div class="kpi"><div class="v">${zd.n_clients_today}</div><div class="l">Pedidos hoy</div></div>
+    <div class="kpi g"><div class="v">${zd.n_pallets}P</div><div class="l">Palets hoy</div></div>
+    <div class="kpi o"><div class="v">${zd.n_clients_total}</div><div class="l">Clientes cluster</div></div>`);
+
+  if(nDelta){
+    appendEl(body,'div','drift-box',`⚡ <b>${nDelta} alerta${nDelta>1?'s':''} de cambio</b> — clientes que hoy piden fuera de su perfil habitual del cluster.`);
+  }
+
+  // Stable profile vs today
+  appendEl(body,'div','sec-title','Perfil estable del cluster');
+  const stableBar=document.createElement('div');
+  stableBar.className='stable-bar-wrap';
+  const stableTotal=Object.values(zd.stable_fracs||{}).reduce((s,v)=>s+v,0)||1;
+  const stableSegs=Object.entries(zd.stable_fracs||{}).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([cat,frac])=>{
+    const pct=(frac/stableTotal*100).toFixed(1);
+    return `<div class="cat-seg" style="width:${pct}%;background:${CAT_BG[cat]}" title="${CAT_LBL[cat]}: ${pct}%"></div>`;
+  }).join('');
+  stableBar.innerHTML=`<div class="stable-note">Siempre igual — base para preparar el stock de la zona</div>
+    <div class="cat-stack">${stableSegs}</div>
+    <div class="cat-legend" style="margin-top:5px">${Object.entries(zd.stable_fracs||{}).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([cat,frac])=>
+      `<div class="cat-leg-item"><div class="cat-dot" style="background:${CAT_BG[cat]}"></div>${CAT_LBL[cat]}: ${(frac*100).toFixed(0)}%</div>`
+    ).join('')}</div>`;
+  body.appendChild(stableBar);
+
+  if(zd.profile_drift&&zd.profile_drift.length){
+    const driftNote=document.createElement('div');
+    driftNote.style.cssText='background:#1e1b4b22;border:1px solid #6366f133;border-radius:6px;padding:7px;font-size:9px;color:#a5b4fc;margin-bottom:10px';
+    driftNote.innerHTML='Δ Hoy difiere del perfil:<br>'+zd.profile_drift.map(d=>
+      `${CAT_LBL[d.category]}: <b>${d.today_pct}%</b> hoy vs ${d.hist_pct}% histórico`
+    ).join('<br>');
+    body.appendChild(driftNote);
+  }
+
+  // Order list
+  if(zd.orders.length){
+    appendEl(body,'div','sec-title',`Orden de carga LIFO — ${zd.orders.length} pedidos`);
+    const note=document.createElement('div');
+    note.style.cssText='background:#0c1a2e;border:1px solid #1e3a5f;border-radius:5px;padding:6px 8px;font-size:9px;color:#60a5fa;margin-bottom:8px';
+    note.textContent='⬆ Última entrega se carga primero';
+    body.appendChild(note);
+
+    zd.orders.forEach((o,i)=>{
+      const fragColor=o.fragility>=3?'#fca5a5':o.fragility>=2?'#fcd34d':'#1e2d45';
+      const mainTags=Object.keys(o.main_cats||{}).map(c=>`<span class="or-tag">${CAT_LBL[c]||c}</span>`).join('');
+      const mixTags=Object.keys(o.mixed_cats||{}).map(c=>`<span class="or-tag m">🔀${CAT_LBL[c]||c}</span>`).join('');
+      const deltaTags=(o.delta&&o.delta.flags.length)?o.delta.flags.map(f=>`<span class="or-tag d">Δ ${f.split('(')[0].trim()}</span>`).join(''):'';
+      const tw=o.tw_close<86399?`<span class="or-tag tw">${fmt(o.tw_open)}–${fmt(o.tw_close)}</span>`:'';
+      const row=document.createElement('div');
+      row.className='order-row';
+      row.innerHTML=`
+        <div class="or-head">
+          <span class="or-num">${i+1}</span>
+          <div class="or-dot" style="background:${fragColor}"></div>
+          <span class="or-name" title="${o.name}">${o.name}</span>
+          <span class="or-city">${(o.city||'').split(' ')[0]}</span>
+          <span class="or-boxes">${o.total_boxes|0}cj</span>
+        </div>
+        ${mainTags||mixTags||deltaTags||tw?`<div class="or-tags">${mainTags}${mixTags}${deltaTags}${tw}</div>`:''}`;
+      body.appendChild(row);
+    });
+  }
+}
+
+function renderMixedDetail(day){
+  const mx=day.mixed_zone;
+  document.getElementById('dp-badge').style.cssText='background:#3b1d0844;color:#d97706;font-size:16px';
+  document.getElementById('dp-badge').textContent='🔀';
+  document.getElementById('dp-title').textContent='Zona Mixta — productos menores';
+
+  const body=document.getElementById('dp-body');
+  body.innerHTML='';
+
+  appendEl(body,'div','kpi-row',`
+    <div class="kpi o"><div class="v">${mx.n_items}</div><div class="l">Items</div></div>
+    <div class="kpi"><div class="v">${mx.total_boxes|0}cj</div><div class="l">Cajas</div></div>
+    <div class="kpi"><div class="v">${mx.total_pallets}P</div><div class="l">Equiv. palets</div></div>`);
+
+  const note=document.createElement('div');
+  note.style.cssText='background:#251608;border:1px solid #92400e;border-radius:5px;padding:7px;font-size:10px;color:#d97706;margin-bottom:10px;line-height:1.6';
+  note.innerHTML='📍 <b>Ubicación:</b> entrada del almacén.<br>Son categorías que cada cliente pide en cantidades pequeñas, fuera de su perfil principal de cluster. El operario pasa por aquí al inicio o final de cada preparación.';
+  body.appendChild(note);
+
+  appendEl(body,'div','sec-title','Por categoría');
+  Object.entries(mx.by_category).forEach(([cat,v])=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:5px 8px;background:#1c1208;border-radius:5px';
+    row.innerHTML=`<div style="font-size:11px;color:${CAT_FG[cat]||'#9ca3af'};flex:1">${CAT_LBL[cat]||cat}</div>
+      <div style="font-size:10px;color:#d97706">${v.n_items} items</div>
+      <div style="font-size:10px;color:#78350f">${v.boxes}cj</div>`;
+    body.appendChild(row);
+  });
+
+  if(mx.items&&mx.items.length){
+    appendEl(body,'div','sec-title',`Detalle (${Math.min(60,mx.items.length)} items)`);
+    mx.items.slice(0,60).forEach(item=>{
+      const row=document.createElement('div');
+      const zColor=ZONE_COLORS[item.zone]||'#475569';
+      row.style.cssText='display:flex;gap:6px;align-items:center;padding:3px 0;border-bottom:1px solid #1a2233;font-size:10px';
+      row.innerHTML=`<div style="width:8px;height:8px;border-radius:50%;background:${zColor};flex-shrink:0"></div>
+        <span style="flex:1;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.client}</span>
+        <span style="color:${CAT_FG[item.category]||'#64748b'};white-space:nowrap">${CAT_LBL[item.category]||item.category}</span>
+        <span style="color:#d97706;min-width:28px;text-align:right">${item.boxes}cj</span>`;
+      body.appendChild(row);
+    });
+  }
+}
+
+function appendEl(parent,tag,cls,html){
+  const el=document.createElement(tag);
+  el.className=cls; el.innerHTML=html;
+  parent.appendChild(el); return el;
+}
+function fmt(s){if(!s&&s!==0)return'—';return`${Math.floor(s/3600)}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}`;}
+
+window.addEventListener('resize',()=>renderDay(currentDay));
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Damm — App Magatzem</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f8f9fa;--card:#fff;--primary:#e8001c;--muted:#6b7280;
+  --border:#e5e7eb;--success:#16a34a;--warning:#d97706;--text:#111827;--accent:#fef2f2;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto}
+
+.hdr{position:sticky;top:0;z-index:100;background:var(--card);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:10px}
+.logo{width:36px;height:36px;background:var(--primary);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:18px;flex-shrink:0}
+.hdr-title{font-size:15px;font-weight:800}.hdr-sub{font-size:11px;color:var(--muted)}
+.steps{margin-left:auto;display:flex;gap:4px;align-items:center}
+.sd{width:8px;height:8px;border-radius:50%;background:var(--border);transition:all .2s}
+.sd.active{background:var(--primary);width:20px;border-radius:4px}.sd.done{background:var(--success)}
+
+.scr{display:none;flex-direction:column;min-height:calc(100vh - 57px)}.scr.on{display:flex}
+
+/* ── Day tabs ── */
+.daytabs{display:flex;gap:6px;overflow-x:auto;padding:12px 16px 0;flex-shrink:0}
+.daytab{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s}
+.daytab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* ── Vehicle list ── */
+.vlist{padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex:1;overflow-y:auto}
+.vcard{background:#fff;border-radius:14px;border:2px solid var(--border);padding:14px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:12px}
+.vcard:hover,.vcard.sel{border-color:var(--primary);background:var(--accent)}
+.vicon{width:44px;height:44px;border-radius:11px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.vname{font-size:13px;font-weight:800}.vsub{font-size:11px;color:var(--muted);margin-top:1px}
+.vstats{display:flex;gap:10px;margin-top:5px}
+.vstat{font-size:11px;color:var(--primary);font-weight:700}
+
+/* ── Truck plan (loading order overview) ── */
+.plan-wrap{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+
+/* Visual truck (side view) */
+.truck-diagram{background:#fff;border-radius:14px;border:1px solid var(--border);padding:14px;overflow:hidden}
+.td-label{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;justify-content:space-between}
+.truck-body{display:flex;flex-direction:column;gap:4px}
+.truck-section{border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .2s;border:2px solid transparent}
+.truck-section:hover{filter:brightness(1.05)}
+.truck-section.current{border-color:#fff8;box-shadow:0 0 0 2px var(--primary)}
+.truck-section.done-sec{opacity:.5}
+.ts-depth{width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,.25);color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ts-info{flex:1;min-width:0}
+.ts-title{font-size:12px;font-weight:800;color:#fff}
+.ts-sub{font-size:10px;color:rgba(255,255,255,.75);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ts-right{text-align:right;flex-shrink:0}
+.ts-pals{font-size:18px;font-weight:900;color:#fff}
+.ts-lbl{font-size:9px;color:rgba(255,255,255,.7)}
+.truck-door{text-align:center;font-size:10px;color:var(--muted);font-weight:600;letter-spacing:2px;padding:4px 0}
+.truck-back{text-align:center;font-size:10px;color:var(--muted);font-weight:600;letter-spacing:2px;padding:4px 0}
+
+/* Note */
+.lifo-note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px 14px;font-size:12px;color:#1e40af;line-height:1.5}
+
+/* ── Section detail ── */
+.sec-detail{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+
+/* Section hero */
+.sec-hero{border-radius:16px;padding:18px;color:#fff;position:relative;overflow:hidden}
+.sh-eyebrow{font-size:11px;font-weight:700;opacity:.8;margin-bottom:4px}
+.sh-title{font-size:32px;font-weight:900;line-height:1}
+.sh-sub{font-size:14px;opacity:.9;margin-top:2px;font-weight:600}
+.sh-zone-loc{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.18);border-radius:12px;padding:10px 12px;margin-top:12px;backdrop-filter:blur(4px)}
+.sh-depth{position:absolute;bottom:-10px;right:12px;font-size:80px;font-weight:900;opacity:.15;line-height:1}
+
+/* Truck progress bar */
+.truck-prog{background:#fff;border-radius:12px;border:1px solid var(--border);padding:12px 14px}
+.tp-lbl{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between}
+.truck-bar{display:flex;gap:3px;height:20px;border-radius:8px;overflow:hidden}
+.tb-seg{flex:1;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;transition:all .3s}
+.tb-seg.empty-seg{background:#f3f4f6;color:#9ca3af}
+
+/* Pick list container */
+.pick-card{background:#fff;border-radius:14px;border:1px solid var(--border);overflow:hidden}
+.pick-hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.pick-hdr-title{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted)}
+.pick-hdr-prog{font-size:13px;font-weight:800;color:var(--primary)}
+.prog-bar{height:4px;background:var(--border);overflow:hidden}
+.prog-fill{height:100%;background:var(--success);transition:width .3s}
+.tw-tag{font-size:9px;background:#eff6ff;color:#1d4ed8;border-radius:4px;padding:1px 5px;font-weight:700}
+.frag-tag{font-size:9px;background:#fee2e2;color:#991b1b;border-radius:4px;padding:1px 5px;font-weight:700}
+
+/* Client block */
+.client-block{border-bottom:2px solid var(--border)}
+.client-block:last-child{border-bottom:none}
+.client-hdr{padding:10px 14px;background:#f9fafb;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;border-left:4px solid #ccc}
+.client-name{font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.client-meta{font-size:10px;color:var(--muted);margin-top:2px;display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.depth-badge{font-size:9px;font-weight:800;border-radius:4px;padding:2px 6px;white-space:nowrap}
+
+/* Pallet card */
+.pal-card{border-bottom:1px solid #f3f4f6;transition:background .15s}
+.pal-card:last-child{border:none}
+.pal-card.chk{background:#f0fdf4}
+.pal-card-hdr{padding:11px 14px 8px;display:flex;align-items:flex-start;gap:10px;cursor:pointer}
+.pal-check{width:26px;height:26px;border-radius:7px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:all .15s;margin-top:2px}
+.pal-card.chk .pal-check{background:var(--success);border-color:var(--success);color:#fff}
+.pal-num{width:26px;height:26px;border-radius:7px;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;margin-top:2px}
+.pal-title{font-size:12px;font-weight:700;color:var(--text)}
+.pal-sub{font-size:10px;color:var(--muted);margin-top:1px}
+.cat-pill{font-size:10px;background:#f3f4f6;border-radius:5px;padding:2px 7px;color:#374151;font-weight:600}
+.pal-boxes{font-size:17px;font-weight:900;color:var(--primary)}
+.pal-frac{font-size:9px;color:var(--muted)}
+
+/* Stacking diagram */
+.stack-diag{margin:0 14px 10px;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+.stack-diag-hdr{background:#f3f4f6;padding:5px 10px;font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted);letter-spacing:.5px;display:flex;justify-content:space-between}
+.stack-layer{padding:8px 10px;display:flex;align-items:center;gap:8px;border-top:1px solid #e5e7eb}
+.stack-layer:first-child{border-top:none}
+.stack-layer.mine{background:#eff6ff}
+.stack-pos{width:44px;font-size:9px;font-weight:800;text-align:center;flex-shrink:0;line-height:1.3}
+.stack-cats{display:flex;flex-wrap:wrap;gap:3px;flex:1}
+.stack-boxes{font-size:11px;font-weight:700;color:var(--primary);flex-shrink:0}
+.stack-arrow{text-align:center;padding:4px;font-size:10px;color:var(--muted);background:#f9fafb;border-top:1px dashed var(--border)}
+
+/* Truck position strip */
+.truck-pos{margin:0 14px 12px;background:#f9fafb;border-radius:10px;border:1px solid var(--border);padding:8px 10px}
+.truck-pos-lbl{font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between}
+.tps-bar{display:flex;gap:3px;align-items:center}
+.tps-seg{flex:1;height:28px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;transition:all .2s;position:relative}
+.tps-seg.active{transform:scaleY(1.15);box-shadow:0 0 0 2px var(--primary),0 2px 6px rgba(0,0,0,.2);z-index:1}
+.tps-seg.done-s{opacity:.4}
+.tps-seg.empty-s{background:#e5e7eb;color:#9ca3af}
+.tps-depot{font-size:9px;color:var(--muted);font-weight:700;flex-shrink:0}
+
+/* Reserve */
+.reserve-card{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:12px 14px}
+.reserve-bar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:8px;gap:2px}
+.rb-used{background:var(--primary);border-radius:5px 0 0 5px}
+.rb-ret{background:#d97706}
+.rb-empty{background:#f3f4f6;border-radius:0 5px 5px 0}
+
+/* Alerts */
+.stack-warn{background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:10px 12px;font-size:12px;color:#991b1b;font-weight:600}
+.mix-note{background:#fffbeb;border:1px dashed #d97706;border-radius:10px;padding:10px 12px;font-size:12px;color:#92400e}
+
+/* Sticky button */
+.sticky-btn{position:sticky;bottom:0;background:rgba(248,249,250,.92);backdrop-filter:blur(8px);padding:12px 16px;border-top:1px solid var(--border)}
+.big-btn{width:100%;padding:16px;border-radius:14px;border:none;font-size:16px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
+.big-btn.pri{background:var(--primary);color:#fff}
+.big-btn.suc{background:var(--success);color:#fff}
+.big-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* Done */
+.done-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:14px;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="logo">D</div>
+  <div><div class="hdr-title">Damm — Magatzem</div><div class="hdr-sub" id="hdr-sub">Selecciona dia i camió</div></div>
+  <div class="steps" id="steps">
+    <div class="sd active" id="s0"></div>
+    <div class="sd" id="s1"></div>
+    <div class="sd" id="s2"></div>
+  </div>
+</div>
+
+<!-- 0: Day + vehicle -->
+<div class="scr on" id="scr-sel">
+  <div class="daytabs" id="daytabs"></div>
+  <div class="vlist" id="vlist"></div>
+  <div class="sticky-btn">
+    <button class="big-btn pri" id="btn-plan" disabled onclick="goToPlan()">📋 Veure pla de càrrega</button>
+  </div>
+</div>
+
+<!-- 1: Loading plan (truck diagram) -->
+<div class="scr" id="scr-plan">
+  <div class="plan-wrap" id="plan-body"></div>
+  <div class="sticky-btn">
+    <button class="big-btn pri" onclick="startLoading()">🚛 Iniciar càrrega</button>
+  </div>
+</div>
+
+<!-- 2: Section detail (picking) -->
+<div class="scr" id="scr-sec">
+  <div class="sec-detail" id="sec-body"></div>
+  <div class="sticky-btn">
+    <button class="big-btn suc" id="btn-load" disabled onclick="confirmSection()">✅ Secció carregada</button>
+  </div>
+</div>
+
+<!-- 3: Done -->
+<div class="scr" id="scr-done">
+  <div class="done-wrap">
+    <div style="font-size:64px">🚛</div>
+    <div style="font-size:22px;font-weight:900">Camió carregat!</div>
+    <div style="font-size:13px;color:var(--muted)" id="done-txt"></div>
+    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:14px;padding:14px;width:100%;text-align:left">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#15803d;margin-bottom:6px">Resum de càrrega</div>
+      <div id="done-summary"></div>
+    </div>
+  </div>
+  <div class="sticky-btn">
+    <button class="big-btn pri" onclick="reset()">← Tornar a l'inici</button>
+  </div>
+</div>
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────────
+const ZONE_C = {A:'#6366f1',B:'#06b6d4',C:'#10b981',D:'#f59e0b',E:'#f43f5e',F:'#a855f7',G:'#ec4899',H:'#14b8a6'};
+const CAT_LBL= {beer:'Cerveza',water:'Agua',wine:'Vi',softdrink:'Refresc',dairy:'Làctic',coffee:'Cafè',sweetener:'Edulcorant',packaging:'Embalatge',empty_pkg:'Envàs buit',generic:'Genèric',utensil:'Utensili'};
+const CAT_ICO= {beer:'🍺',water:'💧',wine:'🍷',softdrink:'🥤',dairy:'🥛',coffee:'☕',sweetener:'🍬',packaging:'📦',empty_pkg:'♻️',generic:'📦',utensil:'🍴'};
+const VTICON = {truck_8:'🚛',truck_6:'🚚',van_3:'🚐'};
+const DAYS   = ['16/03/2026','17/03/2026','18/03/2026','19/03/2026','20/03/2026'];
+const DW     = {'16/03/2026':'Dilluns','17/03/2026':'Dimarts','18/03/2026':'Dimecres','19/03/2026':'Dijous','20/03/2026':'Divendres'};
+const RETURN_RESERVE = 0.15;  // 15% reserved for returns
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let CLUST_DATA = [], WH_DATA = [];
+let selDay = null, selVehicle = null;
+let sections = [];   // loading sections in order (section[0] = deepest = last trip)
+let secIdx = 0;      // current section being loaded
+let checked = new Set();
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  [CLUST_DATA, WH_DATA] = await Promise.all([
+    fetch('results_clustering.json').then(r => r.json()),
+    fetch('results_warehouse.json').then(r => r.json()),
+  ]);
+  buildDayTabs();
+  selectDay(DAYS[0]);
+}
+
+function buildDayTabs() {
+  const el = document.getElementById('daytabs');
+  DAYS.forEach(d => {
+    const b = document.createElement('button');
+    b.className = 'daytab'; b.textContent = DW[d]; b.dataset.d = d;
+    b.onclick = () => selectDay(d);
+    el.appendChild(b);
+  });
+}
+
+function selectDay(d) {
+  selDay = d; selVehicle = null;
+  document.querySelectorAll('.daytab').forEach(b => b.classList.toggle('active', b.dataset.d === d));
+  document.getElementById('btn-plan').disabled = true;
+  renderVList();
+}
+
+function renderVList() {
+  const el = document.getElementById('vlist');
+  el.innerHTML = '';
+  const dayData = CLUST_DATA.find(x => x.date === selDay);
+  if (!dayData) return;
+
+  dayData.routes.forEach(route => {
+    const isSel = selVehicle && selVehicle.vehicle_id === route.vehicle_id;
+    const nTrips = route.trips.length;
+    const nStops = route.trips.reduce((s, t) => s + t.stops.length, 0);
+    const nReloads = route.trips.filter(t => t.is_reload).length;
+
+    const card = document.createElement('div');
+    card.className = 'vcard' + (isSel ? ' sel' : '');
+    card.innerHTML = `
+      <div class="vicon">${VTICON[route.vehicle_type] || '🚚'}</div>
+      <div style="flex:1">
+        <div class="vname">${route.vehicle_id}</div>
+        <div class="vsub">${route.driver_name.split(' ')[0]} · ${route.vehicle_type} · ${route.capacity_pallets}P</div>
+        <div class="vstats">
+          <span class="vstat">📦 ${nTrips} seccions</span>
+          <span class="vstat">🛑 ${nStops} parades</span>
+          ${nReloads > 0 ? `<span class="vstat">↩ ${nReloads} recàrrega${nReloads>1?'s':''}</span>` : ''}
+        </div>
+      </div>`;
+    card.onclick = () => {
+      selVehicle = route;
+      document.getElementById('btn-plan').disabled = false;
+      renderVList();
+    };
+    el.appendChild(card);
+  });
+}
+
+// ── Build sections in LOADING order (reverse of delivery order) ───────────────
+function buildSections(route) {
+  // Each trip = one section of the truck
+  // LIFO: last trip (highest trip_number) = deepest in truck = loaded first
+  const trips = [...route.trips].sort((a, b) => b.trip_number - a.trip_number);
+  return trips.map((trip, i) => ({
+    loading_order: i + 1,        // 1 = deepest (first loaded)
+    delivery_order: trips.length - i, // when it's delivered (last trip delivers last)
+    trip_number:  trip.trip_number,
+    cluster_id:   trip.cluster_id,
+    zone:         trip.warehouse_zone,
+    color:        ZONE_C[trip.warehouse_zone] || '#475569',
+    is_reload:    trip.is_reload,
+    n_pallets:    trip.n_pallets,
+    categories:   trip.categories || [],
+    strategy:     trip.chosen_strategy,
+    stops:        trip.stops,
+    position_label: posLabel(i + 1, trips.length),
+  }));
+}
+
+function posLabel(depth, total) {
+  if (total === 1) return 'Únic viatge';
+  if (depth === 1) return 'Fons del camió';
+  if (depth === total) return 'Davant (prop de la porta)';
+  return `Posició ${depth} de ${total}`;
+}
+
+// ── Plan screen ───────────────────────────────────────────────────────────────
+function goToPlan() {
+  if (!selVehicle) return;
+  sections = buildSections(selVehicle);
+  secIdx = 0;
+  setStep(1);
+  showScr('plan');
+  document.getElementById('hdr-sub').textContent = selVehicle.vehicle_id + ' — Pla de càrrega';
+  renderPlan();
+}
+
+function renderPlan() {
+  const el = document.getElementById('plan-body');
+  el.innerHTML = '';
+
+  // Visual truck diagram (side view, sections stacked)
+  const diagram = document.createElement('div');
+  diagram.className = 'truck-diagram';
+  diagram.innerHTML = `
+    <div class="td-label">
+      <span>🚛 Ordre de càrrega LIFO</span>
+      <span>${sections.length} seccions · ${selVehicle.trips.reduce((s,t)=>s+t.stops.length,0)} parades totals</span>
+    </div>
+    <div class="truck-back">▲ FONS del camió — primer en carregar, últim en descarregar</div>
+    <div class="truck-body" id="truck-body"></div>
+    <div class="truck-door">▼ PORTA / RAMPA — últim en carregar, primer en descarregar</div>`;
+  el.appendChild(diagram);
+
+  // Render each section
+  const truckBody = diagram.querySelector('#truck-body');
+  sections.forEach((sec, i) => {
+    const clientNames = sec.stops.slice(0, 2).map(s => s.client_name.split(' ').slice(0,2).join(' ')).join(', ');
+    const moreClients = sec.stops.length > 2 ? ` +${sec.stops.length-2}` : '';
+    const row = document.createElement('div');
+    row.className = 'truck-section';
+    row.style.background = sec.color;
+    row.id = `tsec-${i}`;
+    row.innerHTML = `
+      <div class="ts-depth">${sec.loading_order}</div>
+      <div class="ts-info">
+        <div class="ts-title">Zona ${sec.zone} — ${sec.position_label}</div>
+        <div class="ts-sub">${clientNames}${moreClients} · Viatge ${sec.trip_number}</div>
+      </div>
+      <div class="ts-right">
+        <div class="ts-pals">${sec.n_pallets}P</div>
+        <div class="ts-lbl">${sec.stops.length} parades</div>
+      </div>`;
+    row.onclick = () => { secIdx = i; startLoading(); };
+    truckBody.appendChild(row);
+  });
+
+  // LIFO explanation note
+  const note = document.createElement('div');
+  note.className = 'lifo-note';
+  note.innerHTML = `<b>📋 Com es carrega el camió:</b><br>
+    Secció 1 (Zona ${sections[0]?.zone}) → va al <b>fons</b>, és la primera en carregar i l'última en descarregar (última parada del dia).<br>
+    Secció ${sections.length} (Zona ${sections[sections.length-1]?.zone}) → va <b>davant</b>, primera en descarregar (primera parada).`;
+  el.appendChild(note);
+}
+
+function startLoading() {
+  secIdx = 0; checked = new Set();
+  setStep(2);
+  showScr('sec');
+  renderSection();
+}
+
+// ── Warehouse data helpers ────────────────────────────────────────────────────
+function findWarehouseTrip(sec) {
+  const dayWH = WH_DATA.find(d => d.date === selDay);
+  if (!dayWH) return null;
+  const vp = dayWH.vehicle_plans.find(v => v.vehicle_id === selVehicle.vehicle_id);
+  if (!vp) return null;
+  return vp.trips.find(t => t.trip_num === sec.trip_number) || null;
+}
+
+// Invert pallet→stops into client→pallets map
+function buildClientPallets(whTrip) {
+  const map = {};
+  if (!whTrip) return map;
+  whTrip.pallets.forEach(pallet => {
+    // Build the full layer list for this pallet (all stops, sorted heavy→top visually = bottom first)
+    const allLayers = pallet.stops.map((s, idx) => ({
+      layer:      idx + 1,           // 1 = bottom (heaviest)
+      client_id:  s.client_id,
+      name:       s.name,
+      main_cats:  s.main_cats || {},
+      mixed_cats: s.mixed_cats || {},
+      boxes:      s.boxes,
+      weight:     s.weight || 0,
+    }));
+
+    pallet.stops.forEach((stop, stopIdx) => {
+      if (!map[stop.client_id]) map[stop.client_id] = [];
+      map[stop.client_id].push({
+        pallet_num:        pallet.pallet_num,
+        loading_position:  pallet.loading_position,
+        loading_depth:     pallet.loading_depth,
+        n_pallets_in_trip: whTrip.n_pallets,
+        is_mixed:          pallet.is_mixed,
+        n_stops_on_pallet: pallet.stops.length,
+        stack_layer:       stopIdx + 1,
+        all_layers:        allLayers,
+        main_cats:         stop.main_cats || {},
+        mixed_cats:        stop.mixed_cats || {},
+        boxes:             stop.boxes,
+        pallet_frac:       stop.pallet_frac,
+        fragility:         stop.fragility,
+        weight:            stop.weight,
+        stack_warning:     pallet.stack_warning,
+      });
+    });
+  });
+  return map;
+}
+
+// Estimate boxes per category from pallet fractions
+function catBoxes(main_cats, mixed_cats, total_boxes) {
+  const all = {...main_cats, ...mixed_cats};
+  const totalFrac = Object.values(all).reduce((s,v) => s+v, 0) || 1;
+  return Object.entries(all)
+    .sort((a,b) => b[1]-a[1])
+    .map(([cat, frac]) => ({ cat, boxes: Math.round((frac/totalFrac)*total_boxes) }))
+    .filter(x => x.boxes > 0);
+}
+
+// Count total pallets for this section (for progress tracking)
+function countTotalPallets(sec, clientPals) {
+  return sec.stops.reduce((sum, s) => {
+    const pals = clientPals[s.client_id] || [];
+    return sum + (pals.length || 1);
+  }, 0);
+}
+
+// ── Section detail screen ─────────────────────────────────────────────────────
+function renderSection() {
+  if (secIdx >= sections.length) { renderDone(); return; }
+  const sec = sections[secIdx];
+  const color = sec.color;
+  const el = document.getElementById('sec-body');
+  checked = new Set();
+
+  const whTrip     = findWarehouseTrip(sec);
+  const clientPals = buildClientPallets(whTrip);
+  const totalPals  = countTotalPallets(sec, clientPals);
+
+  // Stops in REVERSE delivery order: last stop = loaded first = deepest in section
+  const stopsRev = [...sec.stops].reverse();
+
+  // Truck progress bar
+  const barSegs = sections.map((s, i) => {
+    const done = i < secIdx, curr = i === secIdx;
+    const bg = done ? s.color+'aa' : curr ? s.color : 'var(--border)';
+    return `<div class="tb-seg ${done||curr?'':'empty-seg'}" style="background:${bg}">${curr?'▼':done?'✓':''}</div>`;
+  }).join('');
+
+  // Used fraction estimate
+  const usedFrac = Math.min(0.85, sec.n_pallets / (selVehicle.capacity_pallets || 6));
+  const retFrac  = 0.15;
+  const freeFrac = Math.max(0, 1 - usedFrac - retFrac);
+
+  // Category pills
+  const catPills = (sec.categories || []).slice(0, 4).map(c =>
+    `<span style="display:inline-flex;align-items:center;gap:3px;background:#f3f4f6;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;color:#374151;margin:2px">${CAT_ICO[c]||'📦'} ${CAT_LBL[c]||c}</span>`
+  ).join('');
+
+  // Stack warning
+  const hasFragile = sec.stops.some(s => (s.fragility||0) >= 2);
+  const stackWarn = hasFragile
+    ? `<div class="stack-warn">⚠ Secció amb productes fràgils — col·locar <b>SEMPRE a dalt</b> del palet. NO apilar pesats al damunt.</div>` : '';
+
+  // Build client blocks in reverse delivery order
+  const clientBlocksHtml = stopsRev.map((stop, ci) => {
+    const pals = clientPals[stop.client_id] || [];
+    const deliveryPos = sec.stops.length - ci;   // original delivery order
+    const isFirst = ci === 0;                      // first to load = deepest
+    const isLast  = ci === stopsRev.length - 1;   // last to load = near door
+
+    const tw = stop.tw_close && stop.tw_close < 86399
+      ? `<span class="tw-tag">🕐 ${fmt(stop.tw_open)}–${fmt(stop.tw_close)}</span>` : '';
+    const fragTag = (stop.fragility||0) >= 2
+      ? `<span class="frag-tag">⚠ Fràgil</span>` : '';
+
+    const depthBg    = isFirst ? '#1e3a5f' : isLast ? '#6b7280' : '#374151';
+    const depthLabel = isFirst ? '⬛ AL FONS' : isLast ? '⬜ PROP PORTA' : '▪ ENTREMIG';
+
+    // Pallet cards for this client
+    const palRowsHtml = pals.length > 0 ? pals.map((pal, pi) => {
+      const key   = `${ci}-${pi}`;
+      const nPals = pal.n_pallets_in_trip || 1;
+      const mixBadge = pal.is_mixed
+        ? `<span style="font-size:9px;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 5px;margin-left:4px;font-weight:700">MIXTE</span>` : '';
+
+      // ── Stacking diagram (layers shown top→bottom visually, bottom=heaviest) ──
+      const layers = pal.all_layers || [];
+      // Reverse so top layer shows at top of diagram
+      const layersTopFirst = [...layers].reverse();
+      const stackRowsHtml = layersTopFirst.map((lyr, li) => {
+        const isTop = li === 0;
+        const isBot = li === layersTopFirst.length - 1;
+        const isMine = lyr.client_id === stop.client_id;
+        const posTxt = isTop ? '⬜ DALT' : isBot ? '⬛ BAIX' : '▪ MIG';
+        const posColor = isTop ? '#065f46' : isBot ? '#7c2d12' : '#374151';
+        const cbs2 = catBoxes(lyr.main_cats, lyr.mixed_cats || {}, lyr.boxes).slice(0,3);
+        const catsHtml = cbs2.map(x =>
+          `<span class="cat-pill">${CAT_ICO[x.cat]||'📦'} ${CAT_LBL[x.cat]||x.cat} ~${x.boxes}cj</span>`
+        ).join(' ');
+        return `
+          <div class="stack-layer${isMine?' mine':''}">
+            <div class="stack-pos" style="color:${posColor}">${posTxt}</div>
+            <div class="stack-cats">${catsHtml || `<span class="cat-pill">${lyr.boxes|0}cj</span>`}</div>
+            ${isMine ? `<div style="font-size:9px;color:#1d4ed8;font-weight:700;flex-shrink:0">← tu</div>` : ''}
+          </div>`;
+      }).join('');
+
+      const stackDiag = layers.length > 0 ? `
+        <div class="stack-diag">
+          <div class="stack-diag-hdr">
+            <span>📦 Apilament del palé ${pal.pallet_num}</span>
+            <span>${pal.is_mixed ? 'MIXTE — ordre per pes' : 'PUR — mateixa categoria'}</span>
+          </div>
+          ${stackRowsHtml}
+          <div class="stack-arrow">↑ carrega primer les caixes de baix — posa-les al terra del palé</div>
+        </div>` : '';
+
+      // ── Truck position strip ──────────────────────────────────────────────────
+      const segs = Array.from({length: nPals}, (_, si) => {
+        const depth = si + 1;
+        const isActive = depth === pal.loading_depth;
+        const isDone   = depth < pal.loading_depth;
+        // Color: use section color for loaded pallets, lighter for others
+        const bg = isActive ? color : isDone ? color+'55' : '#e5e7eb';
+        const cls = isActive ? 'active' : isDone ? 'done-s' : 'empty-s';
+        return `<div class="tps-seg ${cls}" style="background:${bg}">${isActive?'▼':depth}</div>`;
+      }).join('');
+      const truckPos = `
+        <div class="truck-pos">
+          <div class="truck-pos-lbl">
+            <span>🚛 Posició al camió</span>
+            <span style="color:${color}">${pal.loading_position}</span>
+          </div>
+          <div class="tps-bar">
+            <span class="tps-depot">FONS</span>
+            ${segs}
+            <span class="tps-depot">PORTA</span>
+          </div>
+        </div>`;
+
+      const stkW = pal.stack_warning
+        ? `<div style="font-size:10px;color:#991b1b;padding:6px 14px 8px;font-weight:600">⚠ Fràgil + Pesant al mateix palé — verifica que el fràgil va a dalt</div>` : '';
+
+      return `
+        <div class="pal-card" id="pal-${key}">
+          <div class="pal-card-hdr" onclick="togglePallet('${key}',${totalPals})">
+            <div class="pal-check" id="pc-${key}"></div>
+            <div class="pal-num" style="background:${color}">${pal.pallet_num}</div>
+            <div style="flex:1;min-width:0">
+              <div class="pal-title">Palé ${pal.pallet_num}${mixBadge}</div>
+              <div class="pal-sub">${(pal.boxes||0)|0} caixes · ${pal.pallet_frac.toFixed(2)} palets</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div class="pal-boxes">${(pal.boxes||0)|0}cj</div>
+              <div class="pal-frac">${pal.pallet_frac.toFixed(2)}P</div>
+            </div>
+          </div>
+          ${stackDiag}
+          ${truckPos}
+          ${stkW}
+        </div>`;
+    }).join('') : (() => {
+      // Fallback if no warehouse data
+      const key = `${ci}-0`;
+      const nPalsFb = sec.n_pallets || 1;
+      const segs = Array.from({length: nPalsFb}, (_, si) =>
+        `<div class="tps-seg empty-s">${si+1}</div>`
+      ).join('');
+      return `
+        <div class="pal-card" id="pal-${key}">
+          <div class="pal-card-hdr" onclick="togglePallet('${key}',${totalPals})">
+            <div class="pal-check" id="pc-${key}"></div>
+            <div class="pal-num" style="background:${color}">1</div>
+            <div style="flex:1">
+              <div class="pal-title">Palé estimat</div>
+              <div class="pal-sub">${(stop.n_pallets||1).toFixed(1)} palets estimats</div>
+            </div>
+            <div class="pal-boxes">${(stop.boxes||0)|0}cj</div>
+          </div>
+          <div class="truck-pos">
+            <div class="truck-pos-lbl"><span>🚛 Posició al camió</span></div>
+            <div class="tps-bar"><span class="tps-depot">FONS</span>${segs}<span class="tps-depot">PORTA</span></div>
+          </div>
+        </div>`;
+    })();
+
+    return `
+      <div class="client-block">
+        <div class="client-hdr" style="border-left-color:${color}">
+          <div style="flex:1;min-width:0">
+            <div class="client-name">${stop.client_name}</div>
+            <div class="client-meta">${stop.city} ${tw} ${fragTag}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+            <span class="depth-badge" style="background:${depthBg};color:#fff">${depthLabel}</span>
+            <span style="font-size:10px;color:var(--muted)">Parada ${deliveryPos} · ${pals.length||1}P</span>
+          </div>
+        </div>
+        ${palRowsHtml}
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="sec-hero" style="background:linear-gradient(135deg,${color},${color}bb)">
+      <div class="sh-eyebrow">Secció ${sec.loading_order}/${sections.length} — ${sec.position_label}</div>
+      <div class="sh-title">Zona ${sec.zone}</div>
+      <div class="sh-sub">${(sec.categories||[]).slice(0,2).map(c=>CAT_LBL[c]||c).join(' + ')}</div>
+      <div class="sh-zone-loc">
+        <div style="font-size:22px">📍</div>
+        <div>
+          <div style="font-size:13px;font-weight:700">Passadís ${['3','5','7','2','4','6','8','1'][sec.zone.charCodeAt(0)-65]} — Zona ${sec.zone}</div>
+          <div style="font-size:10px;opacity:.8">Cluster ${sec.cluster_id} · ${sec.stops.length} clients · ${whTrip?whTrip.n_pallets:sec.n_pallets}P</div>
+        </div>
+      </div>
+      <div class="sh-depth">${sec.loading_order}</div>
+    </div>
+
+    <div class="truck-prog">
+      <div class="tp-lbl">
+        <span>Progrés de càrrega del camió</span>
+        <span style="color:${color}">${sec.loading_order}/${sections.length} seccions</span>
+      </div>
+      <div class="truck-bar">${barSegs}</div>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:2px">${catPills}</div>
+
+    ${stackWarn}
+
+    <div class="pick-card">
+      <div class="pick-hdr">
+        <span class="pick-hdr-title">🚛 Ordre LIFO — Últim client primer</span>
+        <span class="pick-hdr-prog" id="prog-txt">0/${totalPals} palés</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill" id="pfill" style="width:0%"></div></div>
+      <div style="padding:7px 14px;font-size:10px;color:var(--muted);background:#f9fafb;border-bottom:1px solid var(--border)">
+        ⬛ Fons primer → ⬜ Porta al final · Marca cada palé quan el carregues al camió
+      </div>
+      ${clientBlocksHtml}
+    </div>
+
+    <div class="reserve-card">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#92400e;margin-bottom:4px">♻️ Espai reservat — Retorns demà</div>
+      <div style="font-size:13px;font-weight:600;color:var(--text)">15% del camió reservat per a envasos buits del dia següent</div>
+      <div class="reserve-bar" style="margin-top:8px">
+        <div class="rb-used" style="width:${Math.round(usedFrac*100)}%"></div>
+        <div class="rb-ret"  style="width:${Math.round(retFrac*100)}%"></div>
+        <div class="rb-empty"style="width:${Math.round(freeFrac*100)}%"></div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:5px;font-size:9px;color:var(--muted)">
+        <span>🔴 Mercaderia: ${Math.round(usedFrac*100)}%</span>
+        <span>🟠 Retorns: ${Math.round(retFrac*100)}%</span>
+        <span>⬜ Lliure: ${Math.round(freeFrac*100)}%</span>
+      </div>
+    </div>
+
+    ${sec.loading_order < sections.length ? '' : `
+    <div class="mix-note">
+      🔀 <b>Zona Mixta</b> — Abans de tancar, afegiu els productes petits de l'entrada del magatzem per a tots els clients d'aquesta ruta.
+    </div>`}`;
+
+  document.getElementById('hdr-sub').textContent = `Secció ${sec.loading_order}/${sections.length} — Zona ${sec.zone}`;
+  document.querySelectorAll('.truck-section').forEach((r, i) => {
+    r.classList.toggle('current', i === secIdx);
+    r.classList.toggle('done-sec', i < secIdx);
+  });
+  updateLoadBtn();
+}
+
+function togglePallet(key, total) {
+  if (checked.has(key)) checked.delete(key); else checked.add(key);
+  const card = document.getElementById('pal-'+key);
+  if (card) card.classList.toggle('chk', checked.has(key));
+  const pc = document.getElementById('pc-'+key);
+  if (pc) pc.textContent = checked.has(key) ? '✓' : '';
+  document.getElementById('prog-txt').textContent = `${checked.size}/${total} palés`;
+  document.getElementById('pfill').style.width = `${checked.size/total*100}%`;
+  updateLoadBtn();
+}
+
+function updateLoadBtn() {
+  const sec = sections[secIdx];
+  if (!sec) return;
+  const whTrip    = findWarehouseTrip(sec);
+  const clientPals= buildClientPallets(whTrip);
+  const total     = countTotalPallets(sec, clientPals);
+  const allDone   = checked.size >= total;
+  const remaining = total - checked.size;
+  const btn = document.getElementById('btn-load');
+  btn.disabled = !allDone;
+  btn.textContent = allDone
+    ? (secIdx < sections.length - 1
+        ? `✅ Secció ${sec.loading_order} carregada — Prosseguir`
+        : '✅ Camió complet — Finalitzar')
+    : `⬜ ${remaining} palé${remaining !== 1 ? 's' : ''} per carregar`;
+}
+
+function confirmSection() {
+  secIdx++;
+  if (secIdx >= sections.length) { renderDone(); return; }
+  checked = new Set();
+  renderSection();
+  document.getElementById('scr-sec').scrollTop = 0;
+}
+
+function renderDone() {
+  setStep(3);
+  showScr('done');
+  const nSec = sections.length;
+  const nStops = selVehicle.trips.reduce((s, t) => s + t.stops.length, 0);
+  document.getElementById('done-txt').textContent =
+    `${selVehicle.vehicle_id} · ${nSec} seccions · ${nStops} parades`;
+
+  const summaryEl = document.getElementById('done-summary');
+  summaryEl.innerHTML = sections.map(sec => `
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <div style="width:20px;height:20px;border-radius:5px;background:${sec.color};flex-shrink:0"></div>
+      <div style="flex:1;font-weight:700">Secció ${sec.loading_order} — Zona ${sec.zone}</div>
+      <div style="color:var(--muted)">${sec.stops.length} parades · ${sec.n_pallets}P</div>
+    </div>`
+  ).join('') + `
+    <div style="font-size:12px;padding-top:8px;color:var(--muted)">
+      Zona mixta recollida · 15% retorns reservat ✓
+    </div>`;
+}
+
+function reset() {
+  selVehicle = null; sections = []; secIdx = 0; checked = new Set();
+  setStep(0); showScr('sel');
+  document.getElementById('hdr-sub').textContent = 'Selecciona dia i camió';
+  document.getElementById('btn-plan').disabled = true;
+  renderVList();
+}
+
+function showScr(n) {
+  document.querySelectorAll('.scr').forEach(s => s.classList.remove('on'));
+  document.getElementById('scr-' + n).classList.add('on');
+}
+function setStep(n) {
+  for (let i = 0; i < 3; i++) {
+    const d = document.getElementById('s' + i);
+    d.className = 'sd' + (i < n ? ' done' : i === n ? ' active' : '');
+  }
+}
+function fmt(s) {
+  if (!s && s !== 0) return '—';
+  return `${Math.floor(s / 3600)}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}`;
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>VRP · INTERHACK 2026</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; display: flex; flex-direction: column; height: 100vh; }
+
+  header {
+    padding: 14px 24px;
+    background: #1a1d27;
+    border-bottom: 1px solid #2d3148;
+    display: flex; align-items: center; gap: 16px;
+  }
+  header h1 { font-size: 18px; font-weight: 700; color: #fff; }
+  header span { font-size: 13px; color: #94a3b8; }
+
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Side panel ── */
+  .panel {
+    width: 320px; min-width: 280px;
+    background: #1a1d27;
+    border-right: 1px solid #2d3148;
+    overflow-y: auto;
+    padding: 16px;
+  }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 12px; }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+  .stat { background: #232638; border-radius: 8px; padding: 10px 12px; }
+  .stat .val { font-size: 22px; font-weight: 700; color: #a78bfa; }
+  .stat .lbl { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+  .vehicle-card { background: #232638; border-radius: 8px; padding: 12px; margin-bottom: 10px; border-left: 4px solid; }
+  .vehicle-card h3 { font-size: 13px; font-weight: 600; }
+  .vehicle-card .driver { font-size: 11px; color: #94a3b8; margin-bottom: 8px; }
+  .stop-list { list-style: none; }
+  .stop-list li {
+    font-size: 11px; padding: 4px 0;
+    border-bottom: 1px solid #2d3148;
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .stop-list li:last-child { border: none; }
+  .stop-num { font-size: 10px; color: #64748b; min-width: 16px; }
+  .stop-name { flex: 1; color: #e2e8f0; }
+  .stop-city { font-size: 10px; color: #64748b; }
+  .stop-boxes { font-size: 10px; color: #a78bfa; min-width: 36px; text-align: right; }
+  .vehicle-meta { margin-top: 8px; font-size: 11px; color: #64748b; display: flex; gap: 12px; }
+
+  /* ── Graph canvas ── */
+  .canvas-wrap { flex: 1; position: relative; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* Tooltip */
+  #tooltip {
+    position: absolute; background: #1e2030; border: 1px solid #3b4168;
+    border-radius: 8px; padding: 10px 14px; font-size: 12px; pointer-events: none;
+    opacity: 0; transition: opacity .15s; max-width: 200px; line-height: 1.6;
+    box-shadow: 0 4px 20px rgba(0,0,0,.5);
+  }
+  #tooltip .tt-name { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+  #tooltip .tt-row { color: #94a3b8; }
+  #tooltip .tt-val { color: #e2e8f0; }
+
+  /* Legend */
+  .legend {
+    position: absolute; bottom: 16px; right: 16px;
+    background: #1a1d27cc; border: 1px solid #2d3148;
+    border-radius: 8px; padding: 12px 16px; font-size: 12px;
+  }
+  .legend-title { color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .legend-line { width: 28px; height: 3px; border-radius: 2px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>VRP · INTERHACK 2026</h1>
+  <span>DDI Mollet del Vallès · Optimización de rutas</span>
+</header>
+
+<div class="layout">
+  <div class="panel" id="panel">
+    <h2>Resumen</h2>
+    <div class="stat-grid" id="stats"></div>
+    <h2>Rutas por vehículo</h2>
+    <div id="routes"></div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="c"></canvas>
+    <div id="tooltip"></div>
+    <div class="legend" id="legend">
+      <div class="legend-title">Leyenda</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;border:2px solid #fff"></div> Almacén</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#6366f1"></div> Parada</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Load data ──────────────────────────────────────────────────────────────────
+async function loadData() {
+  const r = await fetch('solution_demo.json');
+  return r.json();
+}
+
+// ── Palette ───────────────────────────────────────────────────────────────────
+const PALETTE = ['#818cf8','#34d399','#f59e0b','#f472b6','#38bdf8','#a78bfa','#fb7185'];
+
+// ── Geo → canvas projection ───────────────────────────────────────────────────
+function makeProjection(nodes, W, H) {
+  const lats = nodes.map(n => n.lat), lons = nodes.map(n => n.lon);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+  const pad = 60;
+  return (lat, lon) => ({
+    x: pad + (lon - minLon) / (maxLon - minLon) * (W - pad*2),
+    y: H - pad - (lat - minLat) / (maxLat - minLat) * (H - pad*2),
+  });
+}
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
+function draw(data, canvas) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.offsetWidth * devicePixelRatio;
+  const H = canvas.height = canvas.offsetHeight * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  const cW = canvas.offsetWidth, cH = canvas.offsetHeight;
+
+  ctx.clearRect(0, 0, cW, cH);
+
+  const nodes = data.nodes;
+  const proj = makeProjection(nodes, cW, cH);
+  const nodePos = {};
+  nodes.forEach(n => { nodePos[n.id] = proj(n.lat, n.lon); });
+
+  // Build route sequences per vehicle
+  const sequences = {};  // vehicleId → [nodeId list including DEPOT at start/end]
+  data.routes.forEach((route, ri) => {
+    const vid = route.vehicle_id;
+    sequences[vid] = sequences[vid] || [];
+    route.trips.forEach(trip => {
+      const seq = ['DEPOT', ...trip.stops.map(s => s.order_id), 'DEPOT'];
+      sequences[vid].push({ seq, is_reload: trip.is_reload });
+    });
+  });
+
+  const vehicleIds = Object.keys(sequences);
+
+  // ── Draw edges ─────────────────────────────────────────────────────────────
+  vehicleIds.forEach((vid, vi) => {
+    const color = PALETTE[vi % PALETTE.length];
+    sequences[vid].forEach(({ seq, is_reload }) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = is_reload ? 1.5 : 2.5;
+      ctx.setLineDash(is_reload ? [6, 4] : []);
+      ctx.globalAlpha = 0.75;
+
+      for (let i = 0; i < seq.length - 1; i++) {
+        const a = nodePos[seq[i]], b = nodePos[seq[i+1]];
+        if (!a || !b) continue;
+
+        // Draw curved arc for readability
+        ctx.beginPath();
+        const mx = (a.x + b.x) / 2;
+        const my = (a.y + b.y) / 2 - 18;
+        ctx.moveTo(a.x, a.y);
+        ctx.quadraticCurveTo(mx, my, b.x, b.y);
+        ctx.stroke();
+
+        // Arrow at midpoint
+        const t = 0.6;
+        const qx = (1-t)*(1-t)*a.x + 2*(1-t)*t*mx + t*t*b.x;
+        const qy = (1-t)*(1-t)*a.y + 2*(1-t)*t*my + t*t*b.y;
+        const dx = 2*((1-t)*(mx-a.x)+t*(b.x-mx));
+        const dy = 2*((1-t)*(my-a.y)+t*(b.y-my));
+        const ang = Math.atan2(dy, dx);
+        ctx.save();
+        ctx.translate(qx, qy);
+        ctx.rotate(ang);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(7, 0); ctx.lineTo(-4, 4); ctx.lineTo(-4, -4);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+    });
+  });
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+
+  // ── Draw nodes ─────────────────────────────────────────────────────────────
+  nodes.forEach(n => {
+    const { x, y } = nodePos[n.id];
+    const isDepot = n.type === 'depot';
+    const r = isDepot ? 14 : 10;
+
+    // Shadow
+    ctx.shadowColor = isDepot ? '#f59e0b88' : '#6366f188';
+    ctx.shadowBlur = isDepot ? 20 : 12;
+
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fillStyle = isDepot ? '#f59e0b' : '#6366f1';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = isDepot ? 3 : 2;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Order number on non-depot
+    if (!isDepot) {
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${9 * devicePixelRatio / devicePixelRatio}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(n.id.replace('O',''), x, y);
+    }
+
+    // Label below
+    ctx.fillStyle = isDepot ? '#f59e0b' : '#cbd5e1';
+    ctx.font = `${isDepot ? 'bold ' : ''}11px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const label = isDepot ? n.name : n.name.split(' ').slice(0,2).join(' ');
+    ctx.fillText(label, x, y + r + 4);
+  });
+
+  return { nodePos, nodes, sequences, vehicleIds };
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function renderSidebar(data, vehicleIds, sequences) {
+  const statsEl = document.getElementById('stats');
+  const served = data.routes.reduce((s, r) => s + r.trips.reduce((a, t) => a + t.stops.length, 0), 0);
+  const totalSec = data.cost_seconds;
+  const h = Math.floor(totalSec/3600), m = Math.floor((totalSec%3600)/60);
+
+  statsEl.innerHTML = `
+    <div class="stat"><div class="val">${data.num_vehicles}</div><div class="lbl">Vehículos</div></div>
+    <div class="stat"><div class="val">${data.num_trips}</div><div class="lbl">Viajes</div></div>
+    <div class="stat"><div class="val">${served}</div><div class="lbl">Paradas</div></div>
+    <div class="stat"><div class="val">${h}h ${String(m).padStart(2,'0')}m</div><div class="lbl">Coste total</div></div>
+  `;
+
+  const routesEl = document.getElementById('routes');
+  routesEl.innerHTML = '';
+
+  data.routes.forEach((route, ri) => {
+    const color = PALETTE[ri % PALETTE.length];
+    const vid = route.vehicle_id;
+    const allStops = route.trips.flatMap(t => t.stops);
+    const totalLoad = allStops.reduce((s, st) => s + st.volume_boxes, 0);
+    const tripTime = route.trips.reduce((s, t) => s + t.total_time_seconds, 0);
+    const th = Math.floor(tripTime/3600), tm = Math.floor((tripTime%3600)/60);
+
+    const card = document.createElement('div');
+    card.className = 'vehicle-card';
+    card.style.borderColor = color;
+
+    const stopsHtml = allStops.map((s, i) => `
+      <li>
+        <span class="stop-num">${i+1}</span>
+        <span class="stop-name">${s.client_name}</span>
+        <span class="stop-city">${s.city.split(' ')[0]}</span>
+        <span class="stop-boxes">${s.volume_boxes}cj</span>
+      </li>`).join('');
+
+    card.innerHTML = `
+      <h3 style="color:${color}">${vid}</h3>
+      <div class="driver">${route.trips[0]?.stops[0] ? route.vehicle_id : '—'}</div>
+      <ul class="stop-list">${stopsHtml}</ul>
+      <div class="vehicle-meta">
+        <span>🕒 ${th}h ${String(tm).padStart(2,'0')}m</span>
+        <span>📦 ${totalLoad} cajas</span>
+        <span>${route.trips.length} viaje(s)</span>
+      </div>
+    `;
+    routesEl.appendChild(card);
+  });
+
+  // Update legend with vehicle colors
+  const legend = document.getElementById('legend');
+  const vehicleLines = data.routes.map((r, ri) =>
+    `<div class="legend-item"><div class="legend-line" style="background:${PALETTE[ri%PALETTE.length]}"></div><span style="color:${PALETTE[ri%PALETTE.length]}">${r.vehicle_id}</span></div>`
+  ).join('');
+  legend.innerHTML = `
+    <div class="legend-title">Leyenda</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;border:2px solid #fff;min-width:10px;min-height:10px;border-radius:50%"></div> Almacén</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#6366f1;min-width:10px;min-height:10px;border-radius:50%"></div> Parada</div>
+    ${vehicleLines}
+  `;
+}
+
+// ── Tooltip on hover ──────────────────────────────────────────────────────────
+function setupTooltip(canvas, nodePos, nodes) {
+  const tt = document.getElementById('tooltip');
+  const nodeMap = {};
+  nodes.forEach(n => nodeMap[n.id] = n);
+
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    let closest = null, minD = 20;
+
+    for (const [id, pos] of Object.entries(nodePos)) {
+      const d = Math.hypot(pos.x - mx, pos.y - my);
+      if (d < minD) { minD = d; closest = id; }
+    }
+
+    if (closest) {
+      const n = nodeMap[closest];
+      tt.innerHTML = `
+        <div class="tt-name">${n.name}</div>
+        ${n.type !== 'depot' ? `
+        <div class="tt-row">Ciudad: <span class="tt-val">${n.city}</span></div>
+        <div class="tt-row">Cajas: <span class="tt-val">${n.boxes}</span></div>` : '<div class="tt-row">Punto de inicio / recarga</div>'}
+      `;
+      tt.style.left = (e.clientX - rect.left + 14) + 'px';
+      tt.style.top  = (e.clientY - rect.top  - 10) + 'px';
+      tt.style.opacity = '1';
+    } else {
+      tt.style.opacity = '0';
+    }
+  });
+  canvas.addEventListener('mouseleave', () => tt.style.opacity = '0');
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+(async () => {
+  const data = await loadData();
+  const canvas = document.getElementById('c');
+
+  const doRender = () => {
+    const { nodePos, nodes, sequences, vehicleIds } = draw(data, canvas);
+    renderSidebar(data, vehicleIds, sequences);
+    setupTooltip(canvas, nodePos, nodes);
+  };
+
+  doRender();
+  window.addEventListener('resize', doRender);
+})();
+</script>
+</body>
+</html>

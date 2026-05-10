@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv/
+venv/
+*.egg-info/
+.DS_Store
+maps/
+output/
+tune_results.json
+solution_demo.json
+solution.json
+results_week.json
+results_clustering_test.json
