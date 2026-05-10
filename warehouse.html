@@ -619,10 +619,10 @@ function drawPallet3D_dark(stops, accentColor) {
   const totalFrac=Math.min(0.85,products.reduce((s,p)=>s+p.frac,0));
 
   // ── Layout constants ──────────────────────────────────────────────────────
-  const LAYER_H=18,MAX_LAYERS=7,PW=130,DX=44,DY=22,PAD=10,PALH=18,RET_H=22,LABY=22,LEGH=30;
+  const LAYER_H=18,MAX_LAYERS=7,PW=130,DX=44,DY=22,PAD=10,LABY=22,LEGH=30;
   const loadH=MAX_LAYERS*LAYER_H;
-  const svgW=2*PAD+PW+DX+4, svgH=loadH+RET_H+DY+PALH+PAD*2+LABY+LEGH+4;
-  const origX=PAD, origY=svgH-PAD-PALH-LABY-LEGH-4;
+  const svgW=2*PAD+PW+DX+4, svgH=loadH+DY+PAD*2+LABY+LEGH+4;
+  const origX=PAD, origY=svgH-PAD-LABY-LEGH-4;
 
   // ── Column widths: products fill left portion, ghost space fills right ────
   const filledW=Math.round(totalFrac/0.85*PW), emptyW=PW-filledW;
@@ -706,25 +706,10 @@ function drawPallet3D_dark(stops, accentColor) {
     }
   }
 
-  // ── 5) Return row ─────────────────────────────────────────────────────────
-  const rbY=origY-loadH, rtY=rbY-RET_H;
-  parts.push(`<rect x="${origX}" y="${rtY}" width="${PW}" height="${RET_H}" fill="#0c0800" stroke="#d97706" stroke-width="1" stroke-dasharray="4,2"/>`);
-  parts.push(`<polygon points="${origX},${rtY} ${origX+PW},${rtY} ${origX+PW+DX},${rtY-DY} ${origX+DX},${rtY-DY}" fill="#1a0e00" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3,2"/>`);
-  parts.push(`<polygon points="${origX+PW},${rtY} ${origX+PW+DX},${rtY-DY} ${origX+PW+DX},${rbY-DY} ${origX+PW},${rbY}" fill="#110a00" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3,2"/>`);
-  parts.push(`<text x="${origX+PW/2}" y="${rtY+RET_H/2+4}" text-anchor="middle" font-size="9" font-weight="900" fill="#f59e0b" font-family="sans-serif">↩ RETORNS (15%)</text>`);
-
-  // ── 6) Wooden Euro-pallet base ────────────────────────────────────────────
-  const py=origY, pw=PW, pdx=DX, pdy=DY;
-  parts.push(`<polygon points="${origX},${py} ${origX+pw},${py} ${origX+pw+pdx},${py-pdy} ${origX+pdx},${py-pdy}" fill="#a16207"/>`);
-  parts.push(`<rect x="${origX}" y="${py}" width="${pw}" height="${PALH}" fill="#92400e"/>`);
-  [0.18,0.5,0.82].forEach(t=>{parts.push(`<rect x="${origX+pw*t-4}" y="${py+3}" width="8" height="${PALH-6}" rx="1" fill="#7c2d12"/>`);});
-  parts.push(`<polygon points="${origX+pw},${py} ${origX+pw+pdx},${py-pdy} ${origX+pw+pdx},${py+PALH-pdy} ${origX+pw},${py+PALH}" fill="#7c2d12"/>`);
-  parts.push(`<text x="${origX+pw/2}" y="${py+PALH/2+4}" text-anchor="middle" font-size="8" font-weight="700" fill="rgba(255,255,255,.4)" font-family="sans-serif">EUROPALET</text>`);
-
-  // ── 7) Column labels (below pallet base) ──────────────────────────────────
+  // ── 5) Column labels ─────────────────────────────────────────────────────
   cols.forEach(col=>{
     const [cF]=C3D[col.prod.cat]||C3D.generic;
-    const cx=origX+col.x, ly=origY+PALH+4;
+    const cx=origX+col.x, ly=origY+4;
     parts.push(`<rect x="${cx+1}" y="${ly}" width="${col.w-2}" height="18" rx="3" fill="${cF}22" stroke="${cF}55" stroke-width="0.8"/>`);
     if(col.w>=28){
       const lbl=col.prod.denom.split(' ').slice(0,2).join(' ').slice(0,col.w<50?7:10);
@@ -735,15 +720,14 @@ function drawPallet3D_dark(stops, accentColor) {
     }
   });
 
-  // ── 8) % fill badge ───────────────────────────────────────────────────────
+  // ── 6) % fill badge ──────────────────────────────────────────────────────
   const pct=Math.round(totalFrac*100);
   parts.push(`<rect x="${svgW-PAD-46}" y="${PAD}" width="46" height="18" rx="5" fill="#0f1a2e" stroke="${accentColor}44" stroke-width="1"/>`);
   parts.push(`<text x="${svgW-PAD-23}" y="${PAD+12}" text-anchor="middle" font-size="9" font-weight="800" fill="${accentColor}" font-family="sans-serif">${pct}% ple</text>`);
 
-  // ── 9) Color legend (category → color) ───────────────────────────────────
+  // ── 7) Color legend ───────────────────────────────────────────────────────
   {
-    const legY=origY+PALH+LABY+6;
-    // Legend background strip
+    const legY=origY+LABY+6;
     parts.push(`<rect x="${origX}" y="${legY-3}" width="${PW}" height="20" rx="4" fill="#0a1220"/>`);
     let lx=origX+6;
     [...new Set(cols.map(c=>c.prod.cat))].forEach(cat=>{
@@ -754,11 +738,6 @@ function drawPallet3D_dark(stops, accentColor) {
       parts.push(`<text x="${lx+12}" y="${legY+9}" font-size="8" fill="#64748b" font-family="sans-serif">${lbl}</text>`);
       lx+=12+lbl.length*4.6+8;
     });
-    // Amber swatch for return area
-    if(lx<origX+PW-24){
-      parts.push(`<rect x="${lx}" y="${legY+1}" width="9" height="9" rx="2" fill="#d97706" stroke="#d97706" stroke-width="0" stroke-dasharray="2,1"/>`);
-      parts.push(`<text x="${lx+12}" y="${legY+9}" font-size="8" fill="#64748b" font-family="sans-serif">Retorns</text>`);
-    }
   }
 
   return `<svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" style="display:block">${parts.join('')}</svg>`;
