@@ -7,14 +7,14 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#07090f;--card:#0f1520;--card2:#141d2e;--border:#1e2d45;
-  --text:#e2e8f0;--muted:#64748b;--primary:#6366f1;--success:#22c55e;
+  --bg:#0A0805;--card:#130C07;--card2:#1A100A;--border:#2D1A0E;
+  --text:#e2e8f0;--muted:#64748b;--primary:#E8001C;--success:#22c55e;
   --warn:#f59e0b;--danger:#ef4444;
 }
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 
 /* ── Header ── */
-.hdr{background:#0a0f1c;border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:16px;height:56px;position:sticky;top:0;z-index:100;flex-shrink:0}
+.hdr{background:#0A0805;border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:16px;height:56px;position:sticky;top:0;z-index:100;flex-shrink:0}
 .hdr-logo{display:flex;align-items:center;gap:10px}
 .hdr-logo-dot{width:32px;height:32px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff}
 .hdr-title{font-size:15px;font-weight:700;color:#fff}
@@ -35,7 +35,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .scr.on{display:flex}
 
 /* ── KPI strip ── */
-.kpi-strip{display:flex;gap:20px;padding:16px 24px;border-bottom:1px solid var(--border);background:#0a0f1c;flex-shrink:0;flex-wrap:wrap}
+.kpi-strip{display:flex;gap:20px;padding:16px 24px;border-bottom:1px solid var(--border);background:#0A0805;flex-shrink:0;flex-wrap:wrap}
 .kpi{text-align:center}
 .kpi .v{font-size:20px;font-weight:800;color:var(--primary)}
 .kpi .l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:1px}
@@ -121,7 +121,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .prod-bpp{font-size:9px;color:var(--muted)}
 
 /* Stack order indicator */
-.stack-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e2d45}
+.stack-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #2D1A0E}
 .stack-row:last-child{border:none}
 .stack-pos{width:52px;font-size:8px;font-weight:800;flex-shrink:0;padding:2px 6px;border-radius:4px;text-align:center}
 .stack-info{flex:1;font-size:10px;color:var(--text)}
@@ -181,7 +181,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
 <script>
 // ── Data ─────────────────────────────────────────────────────────────────────
-const ZONE_COLOR = {A:'#6366f1',B:'#06b6d4',C:'#10b981',D:'#f59e0b',E:'#f43f5e',F:'#a855f7',G:'#ec4899',H:'#14b8a6'};
+const ZONE_COLOR = {A:'#E8001C',B:'#06b6d4',C:'#10b981',D:'#f59e0b',E:'#f43f5e',F:'#a855f7',G:'#ec4899',H:'#14b8a6'};
 const CAT_ICO = {beer:'🍺',water:'💧',wine:'🍷',softdrink:'🥤',dairy:'🥛',coffee:'☕',sweetener:'🍬',packaging:'📦',empty_pkg:'♻️',generic:'📦',utensil:'🔧',icecream:'🍦',juice:'🍊'};
 const CAT_LBL = {beer:'Cervesa',water:'Aigua',wine:'Vi',softdrink:'Refresc',dairy:'Làctic',coffee:'Cafè',sweetener:'Edulcorant',packaging:'Embalatge',empty_pkg:'Envàs buit',generic:'Genèric',utensil:'Utensili',icecream:'Gelat',juice:'Suc'};
 const CAT_COLOR = {beer:'#b45309',water:'#1d4ed8',wine:'#6d28d9',softdrink:'#065f46',dairy:'#0369a1',coffee:'#44403c',sweetener:'#7e22ce',packaging:'#3f6212',empty_pkg:'#374151',icecream:'#be185d',utensil:'#57534e',generic:'#475569',juice:'#b45309'};
@@ -194,8 +194,8 @@ const C3D = {
   wine:     ['#6d28d9','#c084fc','#4c1d95'],softdrink:['#065f46','#34d399','#064e3b'],
   dairy:    ['#0369a1','#7dd3fc','#0c4a6e'],coffee:   ['#44403c','#a8a29e','#1c1917'],
   sweetener:['#7e22ce','#e879f9','#581c87'],packaging:['#3f6212','#a3e635','#365314'],
-  empty_pkg:['#374151','#9ca3af','#111827'],icecream: ['#be185d','#f9a8d4','#831843'],
-  juice:    ['#b45309','#fbbf24','#92400e'],generic:  ['#334155','#64748b','#1e293b'],
+  empty_pkg:['#374151','#9ca3af','#13100A'],icecream: ['#be185d','#f9a8d4','#831843'],
+  juice:    ['#b45309','#fbbf24','#92400e'],generic:  ['#2D1A0E','#64748b','#13100A'],
   utensil:  ['#44403c','#a8a29e','#1c1917'],
 };
 
@@ -283,7 +283,7 @@ function renderS1(dayIdx) {
     const totalPalV = route.trips.reduce((s,t)=>s+t.n_pallets,0);
     const zones = [...new Set(route.trips.map(t=>t.warehouse_zone))];
     const vtype = route.vehicle_type;
-    const color = ZONE_COLOR[zones[0]] || '#6366f1';
+    const color = ZONE_COLOR[zones[0]] || '#E8001C';
 
     const card = document.createElement('div');
     card.className = 'vcard';
@@ -340,19 +340,19 @@ function drawTruckTopView(vtype, pallets) {
   const parts = [];
 
   // ── Body: cargo rectangle ──────────────────────────────────────────────────
-  parts.push(`<rect x="${cX}" y="${cY}" width="${L.cW}" height="${L.cH}" rx="6" fill="#1e293b" stroke="#334155" stroke-width="2"/>`);
+  parts.push(`<rect x="${cX}" y="${cY}" width="${L.cW}" height="${L.cH}" rx="6" fill="#13100A" stroke="#2D1A0E" stroke-width="2"/>`);
 
   // ── Cab (trapezoid pointing up = front of truck) ───────────────────────────
   const cx1=cX+8, cx2=cX+L.cW-8;
-  parts.push(`<path d="M${cx1},${cY} L${cX+4},${cY-CAB+14} Q${cX+4},${cY-CAB} ${cX+18},${cY-CAB} L${cX+L.cW-18},${cY-CAB} Q${cX+L.cW-4},${cY-CAB} ${cX+L.cW-4},${cY-CAB+14} L${cx2},${cY} Z" fill="#0f172a" stroke="#334155" stroke-width="2"/>`);
+  parts.push(`<path d="M${cx1},${cY} L${cX+4},${cY-CAB+14} Q${cX+4},${cY-CAB} ${cX+18},${cY-CAB} L${cX+L.cW-18},${cY-CAB} Q${cX+L.cW-4},${cY-CAB} ${cX+L.cW-4},${cY-CAB+14} L${cx2},${cY} Z" fill="#0A0805" stroke="#2D1A0E" stroke-width="2"/>`);
   // Windshield
   parts.push(`<path d="M${cX+22},${cY-4} L${cX+14},${cY-CAB+22} Q${cX+14},${cY-CAB+10} ${cX+26},${cY-CAB+8} L${cX+L.cW-26},${cY-CAB+8} Q${cX+L.cW-14},${cY-CAB+10} ${cX+L.cW-14},${cY-CAB+22} L${cX+L.cW-22},${cY-4} Z" fill="#1e3a8a" opacity="0.6"/>`);
   // Headlights
   parts.push(`<rect x="${cX+8}" y="${cY-CAB+6}" width="14" height="8" rx="3" fill="#fbbf24" opacity="0.9"/>`);
   parts.push(`<rect x="${cX+L.cW-22}" y="${cY-CAB+6}" width="14" height="8" rx="3" fill="#fbbf24" opacity="0.9"/>`);
   // Side mirrors
-  parts.push(`<rect x="${cX-L.mirW+2}" y="${cY-CAB+14}" width="${L.mirW}" height="${L.mirH}" rx="3" fill="#334155" stroke="#475569" stroke-width="1"/>`);
-  parts.push(`<rect x="${cX+L.cW-2}" y="${cY-CAB+14}" width="${L.mirW}" height="${L.mirH}" rx="3" fill="#334155" stroke="#475569" stroke-width="1"/>`);
+  parts.push(`<rect x="${cX-L.mirW+2}" y="${cY-CAB+14}" width="${L.mirW}" height="${L.mirH}" rx="3" fill="#2D1A0E" stroke="#475569" stroke-width="1"/>`);
+  parts.push(`<rect x="${cX+L.cW-2}" y="${cY-CAB+14}" width="${L.mirW}" height="${L.mirH}" rx="3" fill="#2D1A0E" stroke="#475569" stroke-width="1"/>`);
 
   // ── Wheels ─────────────────────────────────────────────────────────────────
   const wheelPositions = [
@@ -368,12 +368,12 @@ function drawTruckTopView(vtype, pallets) {
     );
   }
   wheelPositions.forEach(([wx,wy]) => {
-    parts.push(`<rect x="${wx}" y="${wy}" width="${WHEEL_W}" height="${WHEEL_H}" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>`);
-    parts.push(`<rect x="${wx+2}" y="${wy+2}" width="${WHEEL_W-4}" height="${WHEEL_H-4}" rx="3" fill="#334155"/>`);
+    parts.push(`<rect x="${wx}" y="${wy}" width="${WHEEL_W}" height="${WHEEL_H}" rx="4" fill="#13100A" stroke="#475569" stroke-width="1.5"/>`);
+    parts.push(`<rect x="${wx+2}" y="${wy+2}" width="${WHEEL_W-4}" height="${WHEEL_H-4}" rx="3" fill="#2D1A0E"/>`);
   });
 
   // ── Rear bumper line ───────────────────────────────────────────────────────
-  parts.push(`<rect x="${cX}" y="${cY+L.cH-6}" width="${L.cW}" height="6" rx="2" fill="#0f172a" opacity="0.7"/>`);
+  parts.push(`<rect x="${cX}" y="${cY+L.cH-6}" width="${L.cW}" height="6" rx="2" fill="#0A0805" opacity="0.7"/>`);
 
   // ── Loading door indicator ─────────────────────────────────────────────────
   const doorW = L.cW * 0.6, doorX = cX + (L.cW-doorW)/2;
@@ -391,7 +391,7 @@ function drawTruckTopView(vtype, pallets) {
       const fillPct = pal ? Math.min(1, pal.used_frac / 0.85) : 0;
 
       // Pallet base (clip to rounded rect)
-      parts.push(`<rect x="${px}" y="${py}" width="${palW}" height="${palH}" rx="5" fill="#1e293b" stroke="rgba(255,255,255,.12)" stroke-width="1"/>`);
+      parts.push(`<rect x="${px}" y="${py}" width="${palW}" height="${palH}" rx="5" fill="#13100A" stroke="rgba(255,255,255,.12)" stroke-width="1"/>`);
 
       if (pal) {
         // ── Colored fill: horizontal stripes per category (proportional) ──────
@@ -505,7 +505,7 @@ function renderS2(dayIdx, route, whPlan) {
 
     const catsHtml = (trip.categories||[]).slice(0,5).map(cat => {
       const [cF] = C3D[cat]||C3D.generic;
-      return `<span class="zc-cat" style="background:${cF}33;color:${cF==='#334155'?'#94a3b8':cF}">${CAT_ICO[cat]||'📦'} ${CAT_LBL[cat]||cat}</span>`;
+      return `<span class="zc-cat" style="background:${cF}33;color:${cF==='#2D1A0E'?'#94a3b8':cF}">${CAT_ICO[cat]||'📦'} ${CAT_LBL[cat]||cat}</span>`;
     }).join('');
 
     const fragile  = trip.stops.some(s=>s.fragility>=2);
@@ -513,7 +513,7 @@ function renderS2(dayIdx, route, whPlan) {
 
     // Mini pallet bar: filled dots
     const palDots = Array.from({length:palHi},(_,pi) =>
-      `<div style="width:18px;height:18px;border-radius:4px;background:${pi<nPalShow?c+'cc':'#1e2d45'};border:1px solid ${pi<nPalShow?c:'#2d3f5c'};display:flex;align-items:center;justify-content:center;font-size:7px;color:${pi<nPalShow?'#fff':'#2d3f5c'}">${pi<nPalShow?'P':''}</div>`
+      `<div style="width:18px;height:18px;border-radius:4px;background:${pi<nPalShow?c+'cc':'#2D1A0E'};border:1px solid ${pi<nPalShow?c:'#2d3f5c'};display:flex;align-items:center;justify-content:center;font-size:7px;color:${pi<nPalShow?'#fff':'#2d3f5c'}">${pi<nPalShow?'P':''}</div>`
     ).join('');
 
     const card = document.createElement('div');
@@ -654,7 +654,7 @@ function buildPalletCard(pal, palNum, totalPals, zone, zoneColor, posLabel) {
     // Empty slot (reserved)
     card.innerHTML = `
       <div class="pal-header" style="opacity:.4">
-        <div class="pal-num-badge" style="background:#1e2d45">${palNum}</div>
+        <div class="pal-num-badge" style="background:#2D1A0E">${palNum}</div>
         <div style="flex:1">
           <div class="pal-title">Palé ${palNum} — ${posLabel}</div>
           <div class="pal-sub">Slot buit / reservat</div>
@@ -677,7 +677,7 @@ function buildPalletCard(pal, palNum, totalPals, zone, zoneColor, posLabel) {
   // Position strip
   const posSegs = Array.from({length:totalPals},(_,si) => {
     const active = si+1 === palNum, past = si+1 < palNum;
-    const bg = active ? palColor : past ? palColor+'44' : '#1e2d45';
+    const bg = active ? palColor : past ? palColor+'44' : '#2D1A0E';
     return `<div style="flex:1;height:22px;border-radius:4px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:${active?'#fff':'#475569'}">${active?'▼':si+1}</div>`;
   }).join('');
 

@@ -5,19 +5,19 @@
 <title>Clustering Logístico · INTERHACK 2026</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0c0f1a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0A0805; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
 /* ── Header ── */
-header { padding: 10px 20px; background: #111827; border-bottom: 1px solid #1e2d45; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+header { padding: 10px 20px; background: #13100A; border-bottom: 1px solid #2D1A0E; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
 header h1 { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; }
-header h1 span { color: #6366f1; }
+header h1 span { color: #E8001C; }
 .day-tabs { display: flex; gap: 5px; }
-.day-tab { padding: 5px 13px; border-radius: 6px; border: 1px solid #2d3a55; background: transparent; color: #64748b; cursor: pointer; font-size: 12px; font-weight: 600; transition: all .15s; }
-.day-tab:hover { background: #1e2d45; color: #e2e8f0; }
-.day-tab.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+.day-tab { padding: 5px 13px; border-radius: 6px; border: 1px solid #2D1A0E; background: transparent; color: #64748b; cursor: pointer; font-size: 12px; font-weight: 600; transition: all .15s; }
+.day-tab:hover { background: #2D1A0E; color: #e2e8f0; }
+.day-tab.active { background: #E8001C; border-color: #E8001C; color: #fff; }
 .header-kpis { display: flex; gap: 18px; margin-left: auto; }
 .hkpi { text-align: right; }
-.hkpi .v { font-size: 16px; font-weight: 700; color: #818cf8; }
+.hkpi .v { font-size: 16px; font-weight: 700; color: #C9A84C; }
 .hkpi .l { font-size: 9px; color: #475569; text-transform: uppercase; letter-spacing: .5px; }
 .hkpi.fuel .v { color: #34d399; }
 .hkpi.co2 .v { color: #fb923c; }
@@ -27,21 +27,21 @@ header h1 span { color: #6366f1; }
 .layout { display: flex; flex: 1; overflow: hidden; }
 
 /* ── Panel ── */
-.panel { width: 320px; background: #111827; border-right: 1px solid #1e2d45; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
-.panel-filters { padding: 10px 12px; border-bottom: 1px solid #1e2d45; display: flex; flex-wrap: wrap; gap: 5px; }
-.zone-btn { padding: 3px 9px; border-radius: 5px; border: 1px solid #2d3a55; background: transparent; color: #64748b; cursor: pointer; font-size: 11px; font-weight: 700; transition: all .12s; }
-.zone-btn:hover { background: #1e2d45; }
-.zone-btn.active { color: #0c0f1a; }
+.panel { width: 320px; background: #13100A; border-right: 1px solid #2D1A0E; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+.panel-filters { padding: 10px 12px; border-bottom: 1px solid #2D1A0E; display: flex; flex-wrap: wrap; gap: 5px; }
+.zone-btn { padding: 3px 9px; border-radius: 5px; border: 1px solid #2D1A0E; background: transparent; color: #64748b; cursor: pointer; font-size: 11px; font-weight: 700; transition: all .12s; }
+.zone-btn:hover { background: #2D1A0E; }
+.zone-btn.active { color: #0A0805; }
 .zone-btn.all { color: #94a3b8; }
 .zone-btn.all.active { background: #475569; border-color: #475569; color: #fff; }
 .panel-scroll { flex: 1; overflow-y: auto; padding: 8px 10px; }
 .panel-scroll::-webkit-scrollbar { width: 4px; }
-.panel-scroll::-webkit-scrollbar-thumb { background: #2d3a55; border-radius: 2px; }
+.panel-scroll::-webkit-scrollbar-thumb { background: #2D1A0E; border-radius: 2px; }
 
 /* ── Cluster card ── */
 .c-card { border-radius: 8px; background: #161d2e; border-left: 3px solid; margin-bottom: 7px; cursor: pointer; transition: all .15s; }
 .c-card:hover { background: #1a2540; }
-.c-card.selected { background: #1a2540; box-shadow: 0 0 0 1px #6366f133; }
+.c-card.selected { background: #1a2540; box-shadow: 0 0 0 1px #E8001C33; }
 .c-card.dimmed { opacity: 0.25; }
 .c-head { padding: 8px 10px; display: flex; align-items: center; gap: 8px; }
 .zone-badge { width: 22px; height: 22px; border-radius: 5px; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -52,7 +52,7 @@ header h1 span { color: #6366f1; }
 .b-strategy { }
 .b-by_reference { background: #064e3b; color: #6ee7b7; }
 .b-by_order     { background: #431407; color: #fdba74; }
-.b-hybrid       { background: #1e1b4b; color: #a5b4fc; }
+.b-hybrid       { background: #1e1b4b; color: #C9A84C; }
 .b-fragile { background: #450a0a; color: #fca5a5; }
 .b-priority { background: #3b1d08; color: #fcd34d; }
 .b-van { background: #1e293b; color: #94a3b8; }
@@ -61,30 +61,30 @@ header h1 span { color: #6366f1; }
 
 .c-body { display: none; padding: 0 10px 9px; }
 .c-body.open { display: block; }
-.c-meta { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-bottom: 8px; padding-top: 4px; border-top: 1px solid #1e2d45; }
+.c-meta { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-bottom: 8px; padding-top: 4px; border-top: 1px solid #2D1A0E; }
 .cm { text-align: center; }
-.cm .v { font-size: 13px; font-weight: 700; color: #818cf8; }
+.cm .v { font-size: 13px; font-weight: 700; color: #C9A84C; }
 .cm .l { font-size: 9px; color: #475569; }
 .cm .v.green { color: #34d399; }
 .cm .v.orange { color: #fb923c; }
-.pallet-bar { height: 4px; border-radius: 2px; background: #1e2d45; margin-bottom: 8px; overflow: hidden; }
+.pallet-bar { height: 4px; border-radius: 2px; background: #2D1A0E; margin-bottom: 8px; overflow: hidden; }
 .pallet-fill { height: 100%; border-radius: 2px; transition: width .3s; }
 .cats { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 7px; }
-.cat-pill { padding: 1px 6px; border-radius: 4px; font-size: 9px; background: #1e2d45; color: #64748b; }
+.cat-pill { padding: 1px 6px; border-radius: 4px; font-size: 9px; background: #2D1A0E; color: #64748b; }
 .stop-list { }
 .stop-row { font-size: 10px; padding: 3px 0; border-bottom: 1px solid #1a2233; display: flex; gap: 5px; align-items: baseline; }
 .stop-row:last-child { border: none; }
 .sn { color: #334155; min-width: 14px; font-size: 9px; }
 .sname { flex: 1; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scity { color: #475569; min-width: 55px; font-size: 9px; }
-.spal { color: #6366f1; min-width: 28px; text-align: right; font-size: 9px; }
+.spal { color: #E8001C; min-width: 28px; text-align: right; font-size: 9px; }
 .sfrag { font-size: 8px; }
 
 /* ── Map ── */
 .map-wrap { flex: 1; position: relative; overflow: hidden; }
 canvas { display: block; width: 100%; height: 100%; }
 #tooltip {
-  position: absolute; background: #111827ee; border: 1px solid #2d3a55;
+  position: absolute; background: #13100Aee; border: 1px solid #2D1A0E;
   border-radius: 9px; padding: 10px 14px; font-size: 11px; pointer-events: none;
   opacity: 0; transition: opacity .12s; max-width: 230px; line-height: 1.75;
   box-shadow: 0 6px 24px rgba(0,0,0,.6); z-index: 10;
@@ -95,7 +95,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
 .map-legend {
   position: absolute; bottom: 14px; right: 14px;
-  background: #111827cc; border: 1px solid #1e2d45; border-radius: 9px;
+  background: #13100Acc; border: 1px solid #2D1A0E; border-radius: 9px;
   padding: 10px 14px; font-size: 10px; backdrop-filter: blur(4px);
 }
 .ml-title { color: #475569; text-transform: uppercase; letter-spacing: 1px; font-size: 9px; margin-bottom: 6px; }
@@ -104,17 +104,17 @@ canvas { display: block; width: 100%; height: 100%; }
 .ml-line { width: 22px; height: 3px; border-radius: 1px; flex-shrink: 0; }
 
 /* Scrollbar */
-* { scrollbar-width: thin; scrollbar-color: #2d3a55 transparent; }
+* { scrollbar-width: thin; scrollbar-color: #2D1A0E transparent; }
 
 /* Zone colours (8 zones) */
-.z-A { background: #6366f1; color: #fff; }
-.z-B { background: #06b6d4; color: #0c0f1a; }
-.z-C { background: #10b981; color: #0c0f1a; }
-.z-D { background: #f59e0b; color: #0c0f1a; }
+.z-A { background: #E8001C; color: #fff; }
+.z-B { background: #06b6d4; color: #0A0805; }
+.z-C { background: #10b981; color: #0A0805; }
+.z-D { background: #f59e0b; color: #0A0805; }
 .z-E { background: #f43f5e; color: #fff; }
 .z-F { background: #a855f7; color: #fff; }
 .z-G { background: #ec4899; color: #fff; }
-.z-H { background: #14b8a6; color: #0c0f1a; }
+.z-H { background: #14b8a6; color: #0A0805; }
 </style>
 </head>
 <body>
@@ -146,14 +146,14 @@ canvas { display: block; width: 100%; height: 100%; }
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const ZONE_COLORS = {
-  A: '#6366f1', B: '#06b6d4', C: '#10b981', D: '#f59e0b',
+  A: '#E8001C', B: '#06b6d4', C: '#10b981', D: '#f59e0b',
   E: '#f43f5e', F: '#a855f7', G: '#ec4899', H: '#14b8a6'
 };
 
 const STRAT_COLORS = {
   by_reference: { bg: '#064e3b', fg: '#6ee7b7', label: 'Por referencia' },
   by_order:     { bg: '#431407', fg: '#fdba74', label: 'Por pedido' },
-  hybrid:       { bg: '#1e1b4b', fg: '#a5b4fc', label: 'Híbrido' },
+  hybrid:       { bg: '#1e1b4b', fg: '#C9A84C', label: 'Híbrido' },
 };
 
 const VTYPE_BADGE = {
@@ -261,18 +261,18 @@ function renderClusterList(day) {
       const vtype = vClusters[0]?.vehicle_type || 'truck_6';
       const vtb = VTYPE_BADGE[vtype] || VTYPE_BADGE.truck_6;
       const hdr = document.createElement('div');
-      hdr.style.cssText = 'background:#1a2540;border:1px solid #6366f144;border-radius:8px;padding:10px 12px;margin-bottom:8px;';
+      hdr.style.cssText = 'background:#1a2540;border:1px solid #E8001C44;border-radius:8px;padding:10px 12px;margin-bottom:8px;';
       hdr.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-          <span style="font-size:13px;font-weight:700;color:#818cf8">${selectedVehicle}</span>
+          <span style="font-size:13px;font-weight:700;color:#C9A84C">${selectedVehicle}</span>
           <span class="badge ${vtb.cls}">${vtb.label}</span>
           <span style="margin-left:auto;font-size:10px;color:#475569;cursor:pointer" onclick="selectVehicle(null)">✕</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">
-          <div style="text-align:center"><div style="font-size:14px;font-weight:700;color:#818cf8">${vClusters.length}</div><div style="font-size:9px;color:#475569">viajes</div></div>
+          <div style="text-align:center"><div style="font-size:14px;font-weight:700;color:#C9A84C">${vClusters.length}</div><div style="font-size:9px;color:#475569">viajes</div></div>
           <div style="text-align:center"><div style="font-size:14px;font-weight:700;color:#f59e0b">${totalStops}</div><div style="font-size:9px;color:#475569">paradas</div></div>
           <div style="text-align:center"><div style="font-size:14px;font-weight:700;color:#34d399">${totalFuel.toFixed(1)}L</div><div style="font-size:9px;color:#475569">combustible</div></div>
-          <div style="text-align:center"><div style="font-size:14px;font-weight:700;color:#a78bfa">${h}h${String(m).padStart(2,'0')}m</div><div style="font-size:9px;color:#475569">tiempo</div></div>
+          <div style="text-align:center"><div style="font-size:14px;font-weight:700;color:#C9A84C">${h}h${String(m).padStart(2,'0')}m</div><div style="font-size:9px;color:#475569">tiempo</div></div>
         </div>`;
       el.appendChild(hdr);
     }
@@ -392,7 +392,7 @@ function drawMap(day) {
   ctx.scale(dpr, dpr);
   const cW = canvas.offsetWidth, cH = canvas.offsetHeight;
   ctx.clearRect(0, 0, cW, cH);
-  ctx.fillStyle = '#0c0f1a';
+  ctx.fillStyle = '#0A0805';
   ctx.fillRect(0, 0, cW, cH);
 
   const clusters = extractClusters(day);
@@ -518,7 +518,7 @@ function drawMap(day) {
     ctx.fillStyle = '#f59e0b'; ctx.fill();
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
     ctx.shadowBlur = 0;
-    ctx.fillStyle = '#0c0f1a';
+    ctx.fillStyle = '#0A0805';
     ctx.font = 'bold 10px system-ui';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('D', dp.x, dp.y);
@@ -556,7 +556,7 @@ function drawMap(day) {
   legend.innerHTML = `
     <div class="ml-title">Leyenda</div>
     <div class="ml-row"><div class="ml-dot" style="background:#f59e0b"></div><span>Almacén</span></div>
-    <div style="border-top:1px solid #1e2d45;margin:5px 0"></div>
+    <div style="border-top:1px solid #2D1A0E;margin:5px 0"></div>
     <div class="ml-title">Zonas almacén</div>
     ${zoneItems}`;
 

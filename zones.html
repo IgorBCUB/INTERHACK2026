@@ -7,8 +7,8 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0f172a;--card:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#64748b;
-  --primary:#6366f1;--success:#22c55e;--warning:#f59e0b;
+  --bg:#0A0805;--card:#13100A;--border:#2D1A0E;--text:#e2e8f0;--muted:#64748b;
+  --primary:#E8001C;--success:#22c55e;--warning:#C9A84C;
 }
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;height:100vh;overflow:hidden}
 
@@ -54,7 +54,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .section-label{font-size:8px;font-weight:800;text-transform:uppercase;padding:6px 2px 3px;color:var(--muted)}
 
 /* Tooltip */
-.tooltip{position:fixed;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 12px;font-size:11px;color:#e2e8f0;pointer-events:none;z-index:999;display:none;min-width:160px;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+.tooltip{position:fixed;background:#13100A;border:1px solid #2D1A0E;border-radius:8px;padding:8px 12px;font-size:11px;color:#e2e8f0;pointer-events:none;z-index:999;display:none;min-width:160px;box-shadow:0 4px 20px rgba(0,0,0,.5)}
 .tooltip.show{display:block}
 </style>
 </head>
@@ -102,7 +102,7 @@ const SKIP_CATS = new Set(['generic','empty_pkg','utensil']);
 const CAT_COLOR = {beer:'#b45309',water:'#1d4ed8',wine:'#6d28d9',softdrink:'#065f46',dairy:'#0369a1',coffee:'#78350f',sweetener:'#7e22ce',packaging:'#3f6212',empty_pkg:'#374151',icecream:'#be185d',utensil:'#57534e',generic:'#475569',juice:'#92400e'};
 const CAT_ICO   = {beer:'🍺',water:'💧',wine:'🍷',softdrink:'🥤',dairy:'🥛',coffee:'☕',sweetener:'🍬',packaging:'📦',empty_pkg:'♻️',icecream:'🍦',utensil:'🍴',generic:'📦',juice:'🧃'};
 const CAT_LBL   = {beer:'Cervesa',water:'Aigua',wine:'Vi',softdrink:'Refresc',dairy:'Làctic',coffee:'Cafè',sweetener:'Edulcorant',packaging:'Embalatge',empty_pkg:'Envàs buit',icecream:'Gelat',utensil:'Utensili',generic:'Genèric',juice:'Suc'};
-const ZONE_COLOR= {A:'#6366f1',B:'#06b6d4',C:'#10b981',D:'#f59e0b',E:'#f43f5e',F:'#a855f7',G:'#ec4899',H:'#14b8a6'};
+const ZONE_COLOR= {A:'#E8001C',B:'#06b6d4',C:'#10b981',D:'#f59e0b',E:'#f43f5e',F:'#a855f7',G:'#ec4899',H:'#14b8a6'};
 
 // Warehouse layout: [zone, x, y, w, h]
 // SVG viewBox 880×520. Entrance on the LEFT.
@@ -196,8 +196,8 @@ function drawFloor(dayData) {
   parts.push(`<polyline points="6,200 22,194 22,206 6,200" fill="#22c55e" opacity="0.8"/>`);
 
   // ── Aisle labels ──────────────────────────────────────────────────────────
-  parts.push(`<text x="170" y="40" text-anchor="middle" font-size="8" fill="#334155" font-weight="700" font-family="sans-serif" letter-spacing="2">PASSADÍS 1</text>`);
-  parts.push(`<text x="540" y="220" text-anchor="middle" font-size="8" fill="#334155" font-weight="700" font-family="sans-serif" letter-spacing="2">PASSADÍS 2</text>`);
+  parts.push(`<text x="170" y="40" text-anchor="middle" font-size="8" fill="#2D1A0E" font-weight="700" font-family="sans-serif" letter-spacing="2">PASSADÍS 1</text>`);
+  parts.push(`<text x="540" y="220" text-anchor="middle" font-size="8" fill="#2D1A0E" font-weight="700" font-family="sans-serif" letter-spacing="2">PASSADÍS 2</text>`);
 
   // ── Draw each zone ────────────────────────────────────────────────────────
   ZONE_LAYOUT.forEach(([zid, zx, zy, zw, zh]) => {
@@ -254,7 +254,7 @@ function drawFloor(dayData) {
 
     // Inactive overlay
     if (!isActive) {
-      parts.push(`<rect x="${zx}" y="${zy}" width="${zw}" height="${zh}" rx="8" fill="#0f172a" fill-opacity="0.5" pointer-events="none"/>`);
+      parts.push(`<rect x="${zx}" y="${zy}" width="${zw}" height="${zh}" rx="8" fill="#0A0805" fill-opacity="0.5" pointer-events="none"/>`);
     }
 
     // Clickable overlay (transparent, captures mouse)
@@ -262,14 +262,14 @@ function drawFloor(dayData) {
   });
 
   // ── Pallet staging area (bottom strip) ────────────────────────────────────
-  parts.push(`<rect x="200" y="400" width="640" height="50" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>`);
-  parts.push(`<text x="520" y="430" text-anchor="middle" font-size="10" font-weight="700" fill="#334155" letter-spacing="3" font-family="sans-serif">ZONA DE MUNTATGE DE PALÉS</text>`);
+  parts.push(`<rect x="200" y="400" width="640" height="50" rx="6" fill="#13100A" stroke="#2D1A0E" stroke-width="1"/>`);
+  parts.push(`<text x="520" y="430" text-anchor="middle" font-size="10" font-weight="700" fill="#2D1A0E" letter-spacing="3" font-family="sans-serif">ZONA DE MUNTATGE DE PALÉS</text>`);
   // Dock doors (bottom)
   [260,340,420,500,580,660,740].forEach(dx => {
     parts.push(`<rect x="${dx}" y="446" width="40" height="6" rx="3" fill="#e8001c" opacity="0.7"/>`);
     parts.push(`<text x="${dx+20}" y="460" text-anchor="middle" font-size="7" fill="#64748b" font-family="sans-serif">🚛</text>`);
   });
-  parts.push(`<text x="520" y="480" text-anchor="middle" font-size="8" fill="#334155" font-weight="700" font-family="sans-serif" letter-spacing="2">MOLL DE CÀRREGA ↓</text>`);
+  parts.push(`<text x="520" y="480" text-anchor="middle" font-size="8" fill="#2D1A0E" font-weight="700" font-family="sans-serif" letter-spacing="2">MOLL DE CÀRREGA ↓</text>`);
 
   svg.innerHTML = parts.join('');
 
@@ -425,7 +425,7 @@ function renderClientList(zid, color, zoneClients, todayClients, clientOrders, q
       ? ` · 🕐 ${Math.floor(order.tw_open/3600)}:${String(Math.floor((order.tw_open%3600)/60)).padStart(2,'0')}` : '';
     return `
       <div class="client-card${isActive?' active-c':''}">
-        <div class="cc-zone" style="background:${isActive?color:'#334155'}">${zid}</div>
+        <div class="cc-zone" style="background:${isActive?color:'#2D1A0E'}">${zid}</div>
         <div class="cc-info">
           <div class="cc-name">${c.name||id}</div>
           <div class="cc-meta">${c.city||''}${tw}</div>
