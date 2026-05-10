@@ -1,474 +1,770 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="ca">
 <head>
 <meta charset="UTF-8">
-<title>Plataforma Almacén DDI Mollet · INTERHACK 2026</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plataforma Almacén · DDI Mollet</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:#0c0f1a;color:#e2e8f0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+:root{
+  --bg:#07090f;--card:#0f1520;--card2:#141d2e;--border:#1e2d45;
+  --text:#e2e8f0;--muted:#64748b;--primary:#6366f1;--success:#22c55e;
+  --warn:#f59e0b;--danger:#ef4444;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 
 /* ── Header ── */
-header{padding:10px 20px;background:#111827;border-bottom:1px solid #1e2d45;display:flex;align-items:center;gap:14px;flex-shrink:0}
-header h1{font-size:14px;font-weight:700;color:#fff;white-space:nowrap}
-header h1 span{color:#f59e0b}
-.tag{font-size:9px;padding:2px 7px;border-radius:10px;background:#1e3a1a;color:#4ade80;font-weight:700;letter-spacing:.5px}
+.hdr{background:#0a0f1c;border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;gap:16px;height:56px;position:sticky;top:0;z-index:100;flex-shrink:0}
+.hdr-logo{display:flex;align-items:center;gap:10px}
+.hdr-logo-dot{width:32px;height:32px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff}
+.hdr-title{font-size:15px;font-weight:700;color:#fff}
+.hdr-sub{font-size:10px;color:var(--muted);margin-top:1px}
+.hdr-right{margin-left:auto;display:flex;gap:8px;align-items:center}
 .day-tabs{display:flex;gap:4px}
-.day-tab{padding:5px 12px;border-radius:6px;border:1px solid #2d3a55;background:transparent;color:#64748b;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s}
-.day-tab:hover{background:#1e2d45;color:#e2e8f0}
-.day-tab.active{background:#f59e0b;border-color:#f59e0b;color:#0c0f1a}
-.hkpis{display:flex;gap:18px;margin-left:auto}
-.hk{text-align:right}.hk .v{font-size:15px;font-weight:700;color:#f59e0b}.hk .l{font-size:9px;color:#475569;text-transform:uppercase;letter-spacing:.5px}
-.hk.pal .v{color:#34d399}.hk.mix .v{color:#fb923c}.hk.alt .v{color:#f43f5e}
+.day-tab{padding:5px 13px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:12px;font-weight:600;transition:all .15s}
+.day-tab:hover{background:var(--card2);color:var(--text)}
+.day-tab.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.breadcrumb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.breadcrumb span{color:var(--text);font-weight:600}
+.breadcrumb .sep{opacity:.4}
+.back-btn{background:var(--card2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px;transition:all .15s}
+.back-btn:hover{border-color:var(--primary);color:var(--primary)}
 
-/* ── Layout ── */
-.layout{display:flex;flex:1;overflow:hidden}
+/* ── Screens ── */
+.scr{display:none;flex-direction:column;min-height:calc(100vh - 56px)}
+.scr.on{display:flex}
 
-/* ── Floor plan (main) ── */
-.wh-main{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+/* ── KPI strip ── */
+.kpi-strip{display:flex;gap:20px;padding:16px 24px;border-bottom:1px solid var(--border);background:#0a0f1c;flex-shrink:0;flex-wrap:wrap}
+.kpi{text-align:center}
+.kpi .v{font-size:20px;font-weight:800;color:var(--primary)}
+.kpi .l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:1px}
+.kpi.g .v{color:var(--success)}
+.kpi.o .v{color:var(--warn)}
 
-/* Docks row */
-.docks-row{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
-.dock{background:#161d2e;border-radius:6px 6px 0 0;padding:6px 4px;text-align:center;border:1px solid #1e2d45;border-bottom:none;transition:all .2s}
-.dock.active{border-color:var(--zc);background:#1a2540}
-.dock-icon{font-size:14px;margin-bottom:1px}
-.dock-lbl{font-size:8px;font-weight:700;color:#64748b}
-.dock.active .dock-lbl{color:var(--zc)}
-.dock-n{font-size:9px;color:#334155}
-.dock.active .dock-n{color:#94a3b8}
+/* ── Screen 1: Vehicle grid ── */
+.vgrid-wrap{flex:1;overflow-y:auto;padding:24px}
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.vcard{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.vcard::before{content:'';position:absolute;inset:0;background:var(--vc,var(--primary));opacity:0;transition:opacity .2s;pointer-events:none}
+.vcard:hover::before{opacity:.06}
+.vcard:hover{border-color:var(--vc,var(--primary));transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.vc-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.vc-icon{width:46px;height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.vc-id{font-size:14px;font-weight:800;color:#fff}
+.vc-driver{font-size:11px;color:var(--muted);margin-top:2px}
+.vc-type{font-size:9px;font-weight:700;border-radius:4px;padding:2px 6px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)}
+.vc-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;border-top:1px solid var(--border);padding-top:12px;margin-top:4px}
+.vc-stat{text-align:center}
+.vc-stat .sv{font-size:16px;font-weight:800;color:var(--vc,var(--primary))}
+.vc-stat .sl{font-size:8px;color:var(--muted);text-transform:uppercase}
+.vc-zones{display:flex;gap:4px;margin-top:10px;flex-wrap:wrap}
+.zone-dot{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff}
 
-/* Zone grid */
-.zone-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+/* ── Screen 2: Zone list ── */
+.s2-wrap{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:12px}
 
-/* Zone tile */
-.zt{border-radius:10px;background:#161d2e;border:2px solid #1e2d45;padding:14px;cursor:pointer;transition:all .2s;position:relative;min-height:148px;display:flex;flex-direction:column;gap:6px}
-.zt:hover{transform:translateY(-2px);box-shadow:0 6px 20px #0006}
-.zt.sel{border-color:var(--zc);box-shadow:0 0 0 1px var(--zc)44}
-.zt.dim{opacity:.28}
+/* Truck LIFO diagram */
+.truck-lifo{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+.tl-label{font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;justify-content:space-between}
+.tl-body{display:flex;gap:3px;align-items:stretch}
+.tl-seg{flex:1;border-radius:6px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;transition:all .2s;border:2px solid transparent;min-height:70px}
+.tl-seg:hover{filter:brightness(1.2);border-color:rgba(255,255,255,.3)}
+.tl-seg-letter{font-size:14px;font-weight:900;color:#fff}
+.tl-seg-pal{font-size:9px;color:rgba(255,255,255,.7)}
+.tl-seg-tag{font-size:7px;color:rgba(255,255,255,.5);text-transform:uppercase}
+.tl-depot{font-size:9px;color:var(--muted);font-weight:700;writing-mode:vertical-lr;text-align:center;padding:0 4px}
 
-.zt-top{display:flex;align-items:flex-start;gap:8px}
-.zt-letter{width:34px;height:34px;border-radius:8px;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--zc);background:var(--zc)1a}
-.zt-meta{flex:1}
-.zt-name{font-size:12px;font-weight:700;color:#e2e8f0}
-.zt-cats{font-size:9px;color:#475569;margin-top:2px}
-.zt-count{text-align:right}
-.zt-today{font-size:18px;font-weight:800;color:var(--zc)}
-.zt-total{font-size:9px;color:#334155}
+/* Zone cards */
+.zone-card{background:var(--card);border:1px solid var(--border);border-radius:14px;cursor:pointer;transition:all .2s;overflow:hidden;display:flex;align-items:stretch}
+.zone-card:hover{border-color:var(--zc,var(--primary));box-shadow:0 4px 20px rgba(0,0,0,.4);transform:translateX(4px)}
+.zc-accent{width:6px;flex-shrink:0}
+.zc-body{flex:1;padding:16px}
+.zc-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.zc-badge{width:42px;height:42px;border-radius:10px;font-size:18px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.zc-name{font-size:14px;font-weight:800;color:#fff}
+.zc-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.zc-stats{display:flex;gap:16px;margin-top:2px}
+.zc-s{font-size:11px;color:var(--zc,var(--primary));font-weight:700}
+.zc-cats{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.zc-cat{font-size:9px;padding:2px 8px;border-radius:4px;font-weight:700}
+.zc-arr{display:flex;align-items:center;padding:0 16px;font-size:20px;color:var(--muted)}
 
-/* Pill alerts */
-.pills{display:flex;gap:3px;flex-wrap:wrap}
-.pill{padding:1px 6px;border-radius:4px;font-size:8px;font-weight:700}
-.p-frag{background:#450a0a;color:#fca5a5}
-.p-mix{background:#3b1d08;color:#fed7aa}
-.p-delta{background:#1a0a2e;color:#c4b5fd}
-.p-ok{background:#052e16;color:#86efac}
+/* Loading order badge */
+.load-order{font-size:8px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap}
 
-/* Category bar */
-.cat-stack{display:flex;height:8px;border-radius:4px;overflow:hidden;gap:1px}
-.cat-seg{height:100%;transition:width .3s;flex-shrink:0}
-.cat-legend{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
-.cat-leg-item{font-size:8px;display:flex;align-items:center;gap:3px;color:#64748b}
-.cat-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+/* ── Screen 3: Pallet detail ── */
+.s3-wrap{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px}
 
-/* Pallet ring */
-.pal-ring{position:absolute;top:10px;right:10px;text-align:center}
-.pal-num{font-size:15px;font-weight:800;color:var(--zc);line-height:1}
-.pal-lbl{font-size:7px;color:#334155}
+/* Pallet card */
+.pal-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.pal-header{padding:14px 18px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border)}
+.pal-num-badge{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#fff;flex-shrink:0}
+.pal-title{font-size:14px;font-weight:800;color:#fff}
+.pal-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.pal-tags{margin-left:auto;display:flex;gap:6px;flex-shrink:0;align-items:center}
+.ptag{font-size:9px;padding:2px 8px;border-radius:4px;font-weight:700}
+.pal-body{display:flex;gap:0;flex-wrap:wrap}
+.pal-3d-col{padding:20px;display:flex;flex-direction:column;align-items:center;gap:8px;border-right:1px solid var(--border);flex-shrink:0;width:200px}
+.pal-products-col{flex:1;min-width:0;padding:16px}
+.prod-section-title{font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:.5px;margin-bottom:8px}
 
-/* Mixed zone */
-.mix-zone{background:#1c1208;border:1px dashed #92400e;border-radius:10px;padding:12px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .2s}
-.mix-zone:hover,.mix-zone.sel{border-color:#d97706;background:#251608}
-.mix-icon{font-size:22px;flex-shrink:0}
-.mix-body{flex:1}
-.mix-title{font-size:12px;font-weight:700;color:#d97706}
-.mix-sub{font-size:10px;color:#78350f;margin-top:2px}
-.mix-cats-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
-.mix-cpill{font-size:9px;padding:1px 7px;border-radius:4px;background:#451a03;color:#fb923c;font-weight:600}
-.mix-right{text-align:right;flex-shrink:0}
-.mix-num{font-size:22px;font-weight:800;color:#d97706}
-.mix-num-lbl{font-size:9px;color:#78350f}
+/* Product row */
+.prod-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)}
+.prod-row:last-child{border:none}
+.prod-icon{font-size:16px;flex-shrink:0}
+.prod-info{flex:1;min-width:0}
+.prod-name{font-size:11px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prod-mat{font-size:9px;color:var(--muted)}
+.prod-qty{text-align:right;flex-shrink:0}
+.prod-boxes{font-size:18px;font-weight:900;color:var(--primary)}
+.prod-bpp{font-size:9px;color:var(--muted)}
 
-.entrance{text-align:center;padding:5px;font-size:9px;color:#1e2d45;font-weight:700;letter-spacing:3px;text-transform:uppercase}
+/* Stack order indicator */
+.stack-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e2d45}
+.stack-row:last-child{border:none}
+.stack-pos{width:52px;font-size:8px;font-weight:800;flex-shrink:0;padding:2px 6px;border-radius:4px;text-align:center}
+.stack-info{flex:1;font-size:10px;color:var(--text)}
+.stack-frac{font-size:10px;color:var(--primary);font-weight:700;flex-shrink:0}
 
-/* ── Detail panel ── */
-.dp{width:0;background:#0f1623;border-left:1px solid #1e2d45;display:flex;flex-direction:column;overflow:hidden;transition:width .25s;flex-shrink:0}
-.dp.open{width:340px}
-.dp-hdr{padding:12px 14px;border-bottom:1px solid #1e2d45;display:flex;align-items:center;gap:8px;flex-shrink:0}
-.dp-badge{width:30px;height:30px;border-radius:7px;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center}
-.dp-htitle{flex:1;font-size:13px;font-weight:700;color:#e2e8f0}
-.dp-close{cursor:pointer;color:#475569;font-size:16px;line-height:1;padding:2px 6px;border-radius:4px}
-.dp-close:hover{background:#1e2d45;color:#94a3b8}
-.dp-scroll{flex:1;overflow-y:auto;padding:12px}
-.dp-scroll::-webkit-scrollbar{width:3px}
-.dp-scroll::-webkit-scrollbar-thumb{background:#2d3a55;border-radius:2px}
+/* Return slot */
+.return-slot{background:#1c1206;border:1px dashed #d97706;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-top:10px}
+.return-slot-icon{font-size:20px;flex-shrink:0}
+.return-slot-txt{font-size:11px;color:#d97706;font-weight:600}
+.return-slot-sub{font-size:9px;color:#92400e;margin-top:2px}
 
-/* Detail content */
-.kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
-.kpi{background:#161d2e;border-radius:6px;padding:8px;text-align:center}
-.kpi .v{font-size:16px;font-weight:700;color:#818cf8}.kpi .l{font-size:9px;color:#475569}
-.kpi.g .v{color:#34d399}.kpi.o .v{color:#fb923c}.kpi.r .v{color:#f43f5e}
+/* Summary strip */
+.pal-footer{padding:10px 18px;background:rgba(0,0,0,.2);display:flex;gap:16px;border-top:1px solid var(--border)}
+.pf-item{font-size:10px;color:var(--muted)}
+.pf-item b{color:var(--text)}
 
-.sec-title{font-size:9px;color:#475569;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin:10px 0 5px}
+/* Scrollbar */
+*{scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 
-.stable-bar-wrap{margin-bottom:10px}
-.stable-note{font-size:9px;color:#334155;margin-bottom:4px}
-
-.order-row{display:flex;flex-direction:column;gap:2px;padding:6px 0;border-bottom:1px solid #1a2233}
-.order-row:last-child{border:none}
-.or-head{display:flex;align-items:center;gap:5px}
-.or-num{font-size:9px;color:#334155;min-width:16px}
-.or-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.or-name{flex:1;font-size:10px;font-weight:600;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.or-city{font-size:9px;color:#475569;white-space:nowrap}
-.or-boxes{font-size:9px;color:#6366f1;min-width:28px;text-align:right}
-.or-tags{display:flex;gap:3px;flex-wrap:wrap;padding-left:21px}
-.or-tag{font-size:8px;padding:1px 5px;border-radius:3px;background:#1e2d45;color:#64748b}
-.or-tag.m{background:#3b1d08;color:#d97706}
-.or-tag.d{background:#1a0a2e;color:#c4b5fd}
-.or-tag.tw{color:#60a5fa;background:#0c1a2e}
-
-/* Drift note */
-.drift-box{background:#0f172a;border:1px solid #1e3a5f;border-radius:6px;padding:8px;font-size:10px;color:#60a5fa;margin-bottom:10px;line-height:1.6}
-
-*{scrollbar-width:thin;scrollbar-color:#2d3a55 transparent}
-
-/* Category colours */
-:root{
-  --beer:#854d0e;--water:#164e63;--wine:#4c1d95;--softdrink:#065f46;
-  --dairy:#1e3a5f;--coffee:#292524;--sweetener:#3b0764;--packaging:#1a2e05;
-  --empty_pkg:#374151;--generic:#1f2937;--utensil:#1c1917;
-  --beer-t:#fde68a;--water-t:#a5f3fc;--wine-t:#c4b5fd;--softdrink-t:#6ee7b7;
-  --dairy-t:#93c5fd;--coffee-t:#d6d3d1;--sweetener-t:#f0abfc;--packaging-t:#bef264;
-  --empty_pkg-t:#9ca3af;--generic-t:#9ca3af;--utensil-t:#d6d3d1;
-}
+/* Animations */
+.scr.on{animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 </style>
 </head>
 <body>
 
-<header>
-  <h1>Plataforma <span>DDI Mollet</span></h1>
-  <span class="tag">CLUSTERS ESTABLES</span>
-  <div class="day-tabs" id="tabs"></div>
-  <div class="hkpis">
-    <div class="hk"><div class="v" id="hk-orders">—</div><div class="l">Pedidos</div></div>
-    <div class="hk pal"><div class="v" id="hk-pal">—</div><div class="l">Palets</div></div>
-    <div class="hk mix"><div class="v" id="hk-mix">—</div><div class="l">Zona mixta</div></div>
-    <div class="hk alt"><div class="v" id="hk-alt">—</div><div class="l">Alertas Δ</div></div>
+<div class="hdr">
+  <div class="hdr-logo">
+    <div class="hdr-logo-dot">D</div>
+    <div><div class="hdr-title">Plataforma Almacén <span style="opacity:.5">·</span> DDI Mollet</div>
+    <div class="hdr-sub" id="hdr-sub">Selecciona un dia i un vehicle</div></div>
   </div>
-</header>
-
-<div class="layout">
-  <div class="wh-main" id="wh-main"></div>
-  <div class="dp" id="dp">
-    <div class="dp-hdr">
-      <div class="dp-badge" id="dp-badge">?</div>
-      <div class="dp-htitle" id="dp-title">—</div>
-      <div class="dp-close" onclick="closeDetail()">✕</div>
-    </div>
-    <div class="dp-scroll" id="dp-body"></div>
+  <div class="hdr-right">
+    <div class="breadcrumb" id="breadcrumb" style="display:none"></div>
+    <button class="back-btn" id="back-btn" style="display:none" onclick="goBack()">← Enrere</button>
+    <div class="day-tabs" id="day-tabs"></div>
   </div>
 </div>
 
+<!-- Screen 1: Vehicle selection -->
+<div class="scr on" id="scr1">
+  <div class="kpi-strip" id="s1-kpis"></div>
+  <div class="vgrid-wrap"><div class="vgrid" id="vgrid"></div></div>
+</div>
+
+<!-- Screen 2: Zone list -->
+<div class="scr" id="scr2">
+  <div class="kpi-strip" id="s2-kpis"></div>
+  <div class="s2-wrap" id="s2-body"></div>
+</div>
+
+<!-- Screen 3: Pallet detail -->
+<div class="scr" id="scr3">
+  <div class="kpi-strip" id="s3-kpis"></div>
+  <div class="s3-wrap" id="s3-body"></div>
+</div>
+
 <script>
-const ZONE_COLORS = {A:'#6366f1',B:'#06b6d4',C:'#10b981',D:'#f59e0b',E:'#f43f5e',F:'#a855f7',G:'#ec4899',H:'#14b8a6'};
-const CAT_BG = {beer:'#854d0e',water:'#164e63',wine:'#4c1d95',softdrink:'#065f46',dairy:'#1e3a5f',coffee:'#292524',sweetener:'#3b0764',packaging:'#1a2e05',empty_pkg:'#374151',generic:'#1f2937',utensil:'#1c1917'};
-const CAT_FG = {beer:'#fde68a',water:'#a5f3fc',wine:'#c4b5fd',softdrink:'#6ee7b7',dairy:'#93c5fd',coffee:'#d6d3d1',sweetener:'#f0abfc',packaging:'#bef264',empty_pkg:'#9ca3af',generic:'#9ca3af',utensil:'#d6d3d1'};
-const CAT_LBL = {beer:'Cerveza',water:'Agua',wine:'Vino',softdrink:'Refresco',dairy:'Lácteo',coffee:'Café',sweetener:'Edulcorante',packaging:'Embalaje',empty_pkg:'Envase vacío',generic:'Genérico',utensil:'Utensilio'};
+// ── Data ─────────────────────────────────────────────────────────────────────
+const ZONE_COLOR = {A:'#6366f1',B:'#06b6d4',C:'#10b981',D:'#f59e0b',E:'#f43f5e',F:'#a855f7',G:'#ec4899',H:'#14b8a6'};
+const CAT_ICO = {beer:'🍺',water:'💧',wine:'🍷',softdrink:'🥤',dairy:'🥛',coffee:'☕',sweetener:'🍬',packaging:'📦',empty_pkg:'♻️',generic:'📦',utensil:'🔧',icecream:'🍦',juice:'🍊'};
+const CAT_LBL = {beer:'Cervesa',water:'Aigua',wine:'Vi',softdrink:'Refresc',dairy:'Làctic',coffee:'Cafè',sweetener:'Edulcorant',packaging:'Embalatge',empty_pkg:'Envàs buit',generic:'Genèric',utensil:'Utensili',icecream:'Gelat',juice:'Suc'};
+const VTYPE_ICON = {truck_8:'🚛',truck_6:'🚚',van_3:'🚐'};
+const VTYPE_LBL  = {truck_8:'Camió 8P',truck_6:'Camió 6P',van_3:'Furgoneta 3P'};
 
-let DATA=[], currentDay=0, selectedZone=null;
+// 3D Pallet colours [front, top, side]
+const C3D = {
+  beer:     ['#b45309','#f59e0b','#78350f'],water:    ['#1d4ed8','#60a5fa','#1e3a8a'],
+  wine:     ['#6d28d9','#c084fc','#4c1d95'],softdrink:['#065f46','#34d399','#064e3b'],
+  dairy:    ['#0369a1','#7dd3fc','#0c4a6e'],coffee:   ['#44403c','#a8a29e','#1c1917'],
+  sweetener:['#7e22ce','#e879f9','#581c87'],packaging:['#3f6212','#a3e635','#365314'],
+  empty_pkg:['#374151','#9ca3af','#111827'],icecream: ['#be185d','#f9a8d4','#831843'],
+  juice:    ['#b45309','#fbbf24','#92400e'],generic:  ['#334155','#64748b','#1e293b'],
+  utensil:  ['#44403c','#a8a29e','#1c1917'],
+};
 
-async function init(){
-  DATA = await fetch('results_warehouse.json').then(r=>r.json());
-  buildTabs(); renderDay(0);
+let CLU_DATA = [], WH_DATA = [];
+let currentDay = 0, selectedVehicle = null, selectedZone = null;
+let screen = 1;
+
+async function init() {
+  [CLU_DATA, WH_DATA] = await Promise.all([
+    fetch('results_clustering.json').then(r=>r.json()),
+    fetch('results_warehouse.json').then(r=>r.json()),
+  ]);
+  buildDayTabs();
+  renderS1(0);
 }
 
-function buildTabs(){
-  const el=document.getElementById('tabs');
-  DATA.forEach((d,i)=>{
-    const t=document.createElement('button');
-    t.className='day-tab'+(i===0?' active':'');
-    t.textContent=d.weekday;
-    t.onclick=()=>{
-      currentDay=i; selectedZone=null;
+// ── Day tabs ──────────────────────────────────────────────────────────────────
+function buildDayTabs() {
+  const el = document.getElementById('day-tabs');
+  CLU_DATA.forEach((d,i) => {
+    const b = document.createElement('button');
+    b.className = 'day-tab' + (i===0?' active':'');
+    b.textContent = d.weekday;
+    b.onclick = () => {
       document.querySelectorAll('.day-tab').forEach((x,j)=>x.classList.toggle('active',j===i));
-      renderDay(i); closeDetail();
+      currentDay=i; selectedVehicle=null; selectedZone=null;
+      goScreen(1); renderS1(i);
     };
-    el.appendChild(t);
+    el.appendChild(b);
   });
 }
 
-function renderDay(idx){
-  const day=DATA[idx];
-  // Count delta alerts
-  let nDelta=0;
-  Object.values(day.zones).forEach(z=>z.orders.forEach(o=>{if(o.delta&&o.delta.flags.length)nDelta++;}));
-  document.getElementById('hk-orders').textContent=day.total_orders;
-  document.getElementById('hk-pal').textContent=day.total_pallets+'P';
-  document.getElementById('hk-mix').textContent=day.mixed_zone.n_items;
-  document.getElementById('hk-alt').textContent=nDelta;
-  renderFloor(day);
+// ── Screen helpers ────────────────────────────────────────────────────────────
+function goScreen(n) {
+  screen = n;
+  document.querySelectorAll('.scr').forEach((s,i) => s.classList.toggle('on', i===n-1));
+  document.getElementById('back-btn').style.display  = n>1 ? '' : 'none';
+  document.getElementById('breadcrumb').style.display = n>1 ? '' : 'none';
 }
 
-// ── Floor plan ────────────────────────────────────────────────────────────────
-function renderFloor(day){
-  const main=document.getElementById('wh-main');
-  main.innerHTML='';
-
-  const zones=day.zones;
-  const maxPal=Math.max(...Object.values(zones).map(z=>z.n_pallets),1);
-
-  // Docks
-  const docksRow=document.createElement('div');
-  docksRow.className='docks-row';
-  'ABCDEFGH'.split('').forEach(z=>{
-    const zd=zones[z]; const color=ZONE_COLORS[z];
-    const active=zd&&zd.n_clients_today>0;
-    const d=document.createElement('div');
-    d.className='dock'+(active?' active':'');
-    d.style.setProperty('--zc',color);
-    d.innerHTML=`<div class="dock-icon">${active?'🚚':'—'}</div><div class="dock-lbl">Zona ${z}</div><div class="dock-n">${active?zd.n_clients_today+' ped.':'inactivo'}</div>`;
-    d.onclick=()=>selectZone(z);
-    docksRow.appendChild(d);
-  });
-  main.appendChild(docksRow);
-
-  // Zone grid
-  const grid=document.createElement('div');
-  grid.className='zone-grid';
-
-  'ABCDEFGH'.split('').forEach(zl=>{
-    const z=zones[zl]; if(!z) return;
-    const color=ZONE_COLORS[zl];
-    const active=z.n_clients_today>0;
-    const isSel=selectedZone===zl;
-    const nDelta=z.orders.filter(o=>o.delta&&o.delta.flags.length).length;
-
-    const tile=document.createElement('div');
-    tile.className='zt'+(isSel?' sel':'')+(selectedZone&&!isSel?' dim':'');
-    tile.style.cssText=`--zc:${color};border-color:${isSel?color:'#1e2d45'}`;
-
-    // Category stacked bar (stable profile)
-    const stableTotal=Object.values(z.stable_fracs||{}).reduce((s,v)=>s+v,0)||1;
-    const topCats=Object.entries(z.stable_fracs||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    const stackSegs=topCats.map(([cat,frac])=>{
-      const pct=(frac/stableTotal*100).toFixed(1);
-      return `<div class="cat-seg" style="width:${pct}%;background:${CAT_BG[cat]||'#1e2d45'}" title="${CAT_LBL[cat]||cat}: ${pct}%"></div>`;
-    }).join('');
-    const legendItems=topCats.slice(0,3).map(([cat])=>
-      `<div class="cat-leg-item"><div class="cat-dot" style="background:${CAT_BG[cat]}"></div>${CAT_LBL[cat]||cat}</div>`
-    ).join('');
-
-    // Today's category bar
-    const todayTotal=z.cat_summary.reduce((s,c)=>s+c.pallets,0)||1;
-    const todayStack=z.cat_summary.slice(0,5).map(c=>{
-      const pct=(c.pallets/todayTotal*100).toFixed(1);
-      return `<div class="cat-seg" style="width:${pct}%;background:${CAT_BG[c.category]||'#1e2d45'}" title="${CAT_LBL[c.category]}: ${c.pallets}P"></div>`;
-    }).join('');
-
-    // Pills
-    const pills=[];
-    if(z.has_fragile) pills.push(`<span class="pill p-frag">⚠ Frágil</span>`);
-    if(z.n_mixed)     pills.push(`<span class="pill p-mix">🔀 ${z.n_mixed}</span>`);
-    if(nDelta)        pills.push(`<span class="pill p-delta">Δ ${nDelta} alerta${nDelta>1?'s':''}</span>`);
-    if(active&&!z.has_fragile&&!nDelta) pills.push(`<span class="pill p-ok">✓ OK</span>`);
-
-    tile.innerHTML=`
-      <div class="zt-top">
-        <div class="zt-letter">${zl}</div>
-        <div class="zt-meta">
-          <div class="zt-name">Zona ${zl}</div>
-          <div class="zt-cats">${(z.stable_primary||[]).map(c=>CAT_LBL[c]||c).join(' · ')}</div>
-        </div>
-        <div class="zt-count">
-          <div class="zt-today">${active?z.n_clients_today:'—'}</div>
-          <div class="zt-total">${z.n_clients_total} clientes</div>
-        </div>
-      </div>
-      <div class="pills">${pills.join('')}</div>
-      <div class="pal-ring"><div class="pal-num">${active?z.n_pallets+'P':'—'}</div><div class="pal-lbl">hoy</div></div>
-      ${active?`
-        <div style="margin-top:auto">
-          <div style="font-size:8px;color:#334155;margin-bottom:2px">Perfil estable</div>
-          <div class="cat-stack">${stackSegs}</div>
-          <div style="font-size:8px;color:#334155;margin:4px 0 2px">Hoy</div>
-          <div class="cat-stack">${todayStack}</div>
-          <div class="cat-legend">${legendItems}</div>
-        </div>`:'<div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;color:#1e2d45">Sin pedidos</div>'}`;
-
-    tile.onclick=()=>selectZone(zl);
-    grid.appendChild(tile);
-  });
-  main.appendChild(grid);
-
-  // Mixed zone
-  const mx=day.mixed_zone;
-  const mxSel=selectedZone==='MIXED';
-  const mxEl=document.createElement('div');
-  mxEl.className='mix-zone'+(mxSel?' sel':'');
-  const mxCatPills=Object.entries(mx.by_category).slice(0,7).map(([cat,v])=>
-    `<div class="mix-cpill" style="color:${CAT_FG[cat]}">${CAT_LBL[cat]||cat} · ${v.boxes}cj</div>`
-  ).join('');
-  mxEl.innerHTML=`
-    <div class="mix-icon">🔀</div>
-    <div class="mix-body">
-      <div class="mix-title">Zona Mixta — Productos menores</div>
-      <div class="mix-sub">Categorías no dominantes de cada cliente · recogida rápida · ${mx.total_pallets}P equiv.</div>
-      <div class="mix-cats-row">${mxCatPills}</div>
-    </div>
-    <div class="mix-right">
-      <div class="mix-num">${mx.n_items}</div>
-      <div class="mix-num-lbl">items</div>
-    </div>`;
-  mxEl.onclick=()=>selectZone('MIXED');
-  main.appendChild(mxEl);
-
-  main.appendChild(Object.assign(document.createElement('div'),{className:'entrance',textContent:'▼  Entrada / Salida vehículos  ▼'}));
+function goBack() {
+  if (screen === 3) { goScreen(2); renderS2(currentDay, selectedVehicle); }
+  else              { goScreen(1); selectedVehicle=null; selectedZone=null; renderS1(currentDay); }
 }
 
-// ── Selection & detail ────────────────────────────────────────────────────────
-function selectZone(z){
-  selectedZone = selectedZone===z ? null : z;
-  renderFloor(DATA[currentDay]);
-  if(selectedZone) renderDetail(DATA[currentDay], selectedZone);
-  else closeDetail();
+function updateBreadcrumb() {
+  const el = document.getElementById('breadcrumb');
+  const day = CLU_DATA[currentDay];
+  if (screen === 2 && selectedVehicle) {
+    el.innerHTML = `<span>${day.weekday}</span><span class="sep">›</span><span>${selectedVehicle.vehicle_id}</span>`;
+  } else if (screen === 3 && selectedZone) {
+    el.innerHTML = `<span>${day.weekday}</span><span class="sep">›</span><span>${selectedVehicle.vehicle_id}</span><span class="sep">›</span><span>Zona ${selectedZone.warehouse_zone}</span>`;
+  }
+  document.getElementById('hdr-sub').textContent =
+    screen===1 ? `${day.weekday} · ${day.n_orders} pedidos` :
+    screen===2 ? `${selectedVehicle.vehicle_id} · ${selectedVehicle.driver_name}` :
+    `Zona ${selectedZone?.warehouse_zone} · Palés`;
 }
 
-function closeDetail(){
-  selectedZone=null;
-  document.getElementById('dp').classList.remove('open');
-  renderFloor(DATA[currentDay]);
+function fmtTime(s) {
+  if (!s) return '—';
+  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60);
+  return h>0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-function renderDetail(day, z){
-  document.getElementById('dp').classList.add('open');
-  if(z==='MIXED'){renderMixedDetail(day);return;}
-
-  const zd=day.zones[z]; if(!zd) return;
-  const color=ZONE_COLORS[z];
-  document.getElementById('dp-badge').style.cssText=`background:${color}22;color:${color}`;
-  document.getElementById('dp-badge').textContent=z;
-  document.getElementById('dp-title').textContent=`Zona ${z} — ${(zd.stable_primary||[]).map(c=>CAT_LBL[c]||c).join(' + ')}`;
-
-  const body=document.getElementById('dp-body');
-  body.innerHTML='';
+// ── Screen 1: Vehicle grid ────────────────────────────────────────────────────
+function renderS1(dayIdx) {
+  goScreen(1); updateBreadcrumb();
+  const day = CLU_DATA[dayIdx];
+  const wday = WH_DATA[dayIdx];
 
   // KPIs
-  const nDelta=zd.orders.filter(o=>o.delta&&o.delta.flags.length).length;
-  appendEl(body,'div','kpi-row',`
-    <div class="kpi"><div class="v">${zd.n_clients_today}</div><div class="l">Pedidos hoy</div></div>
-    <div class="kpi g"><div class="v">${zd.n_pallets}P</div><div class="l">Palets hoy</div></div>
-    <div class="kpi o"><div class="v">${zd.n_clients_total}</div><div class="l">Clientes cluster</div></div>`);
+  const totalPal = day.routes.reduce((s,r)=>s+r.trips.reduce((t,p)=>t+p.n_pallets,0),0);
+  document.getElementById('s1-kpis').innerHTML = `
+    <div class="kpi"><div class="v">${day.n_orders}</div><div class="l">Pedidos</div></div>
+    <div class="kpi g"><div class="v">${totalPal.toFixed(0)}</div><div class="l">Palés totals</div></div>
+    <div class="kpi"><div class="v">${day.routes.length}</div><div class="l">Vehicles</div></div>
+    <div class="kpi o"><div class="v">${day.total_fuel_l.toFixed(0)}L</div><div class="l">Combustible</div></div>
+    <div class="kpi"><div class="v">${day.co2_kg.toFixed(0)}kg</div><div class="l">CO₂</div></div>`;
 
-  if(nDelta){
-    appendEl(body,'div','drift-box',`⚡ <b>${nDelta} alerta${nDelta>1?'s':''} de cambio</b> — clientes que hoy piden fuera de su perfil habitual del cluster.`);
-  }
+  const grid = document.getElementById('vgrid');
+  grid.innerHTML = '';
 
-  // Stable profile vs today
-  appendEl(body,'div','sec-title','Perfil estable del cluster');
-  const stableBar=document.createElement('div');
-  stableBar.className='stable-bar-wrap';
-  const stableTotal=Object.values(zd.stable_fracs||{}).reduce((s,v)=>s+v,0)||1;
-  const stableSegs=Object.entries(zd.stable_fracs||{}).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([cat,frac])=>{
-    const pct=(frac/stableTotal*100).toFixed(1);
-    return `<div class="cat-seg" style="width:${pct}%;background:${CAT_BG[cat]}" title="${CAT_LBL[cat]}: ${pct}%"></div>`;
-  }).join('');
-  stableBar.innerHTML=`<div class="stable-note">Siempre igual — base para preparar el stock de la zona</div>
-    <div class="cat-stack">${stableSegs}</div>
-    <div class="cat-legend" style="margin-top:5px">${Object.entries(zd.stable_fracs||{}).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([cat,frac])=>
-      `<div class="cat-leg-item"><div class="cat-dot" style="background:${CAT_BG[cat]}"></div>${CAT_LBL[cat]}: ${(frac*100).toFixed(0)}%</div>`
-    ).join('')}</div>`;
-  body.appendChild(stableBar);
+  day.routes.forEach(route => {
+    const totalPalV = route.trips.reduce((s,t)=>s+t.n_pallets,0);
+    const zones = [...new Set(route.trips.map(t=>t.warehouse_zone))];
+    const vtype = route.vehicle_type;
+    const color = ZONE_COLOR[zones[0]] || '#6366f1';
 
-  if(zd.profile_drift&&zd.profile_drift.length){
-    const driftNote=document.createElement('div');
-    driftNote.style.cssText='background:#1e1b4b22;border:1px solid #6366f133;border-radius:6px;padding:7px;font-size:9px;color:#a5b4fc;margin-bottom:10px';
-    driftNote.innerHTML='Δ Hoy difiere del perfil:<br>'+zd.profile_drift.map(d=>
-      `${CAT_LBL[d.category]}: <b>${d.today_pct}%</b> hoy vs ${d.hist_pct}% histórico`
-    ).join('<br>');
-    body.appendChild(driftNote);
-  }
+    const card = document.createElement('div');
+    card.className = 'vcard';
+    card.style.setProperty('--vc', color);
 
-  // Order list
-  if(zd.orders.length){
-    appendEl(body,'div','sec-title',`Orden de carga LIFO — ${zd.orders.length} pedidos`);
-    const note=document.createElement('div');
-    note.style.cssText='background:#0c1a2e;border:1px solid #1e3a5f;border-radius:5px;padding:6px 8px;font-size:9px;color:#60a5fa;margin-bottom:8px';
-    note.textContent='⬆ Última entrega se carga primero';
-    body.appendChild(note);
+    const zonesHtml = zones.map(z =>
+      `<div class="zone-dot" style="background:${ZONE_COLOR[z]||'#475569'}">${z}</div>`
+    ).join('');
 
-    zd.orders.forEach((o,i)=>{
-      const fragColor=o.fragility>=3?'#fca5a5':o.fragility>=2?'#fcd34d':'#1e2d45';
-      const mainTags=Object.keys(o.main_cats||{}).map(c=>`<span class="or-tag">${CAT_LBL[c]||c}</span>`).join('');
-      const mixTags=Object.keys(o.mixed_cats||{}).map(c=>`<span class="or-tag m">🔀${CAT_LBL[c]||c}</span>`).join('');
-      const deltaTags=(o.delta&&o.delta.flags.length)?o.delta.flags.map(f=>`<span class="or-tag d">Δ ${f.split('(')[0].trim()}</span>`).join(''):'';
-      const tw=o.tw_close<86399?`<span class="or-tag tw">${fmt(o.tw_open)}–${fmt(o.tw_close)}</span>`:'';
-      const row=document.createElement('div');
-      row.className='order-row';
-      row.innerHTML=`
-        <div class="or-head">
-          <span class="or-num">${i+1}</span>
-          <div class="or-dot" style="background:${fragColor}"></div>
-          <span class="or-name" title="${o.name}">${o.name}</span>
-          <span class="or-city">${(o.city||'').split(' ')[0]}</span>
-          <span class="or-boxes">${o.total_boxes|0}cj</span>
+    const timeBar = route.total_time_seconds > 0 ? Math.min(100,(route.total_time_seconds/28800)*100) : 0;
+    const timeColor = route.total_time_seconds > 25200 ? '#ef4444' : route.total_time_seconds > 21600 ? '#f59e0b' : '#22c55e';
+
+    card.innerHTML = `
+      <div class="vc-top">
+        <div class="vc-icon" style="background:${color}22">${VTYPE_ICON[vtype]||'🚚'}</div>
+        <div>
+          <div class="vc-id">${route.vehicle_id}</div>
+          <div class="vc-driver">${route.driver_name}</div>
+          <div style="margin-top:4px"><span class="vc-type">${VTYPE_LBL[vtype]||vtype}</span></div>
         </div>
-        ${mainTags||mixTags||deltaTags||tw?`<div class="or-tags">${mainTags}${mixTags}${deltaTags}${tw}</div>`:''}`;
-      body.appendChild(row);
-    });
+      </div>
+      <div class="vc-stats">
+        <div class="vc-stat"><div class="sv">${route.trips.length}</div><div class="sl">Zones</div></div>
+        <div class="vc-stat"><div class="sv">${totalPalV.toFixed(0)}</div><div class="sl">Palés</div></div>
+        <div class="vc-stat"><div class="sv">${fmtTime(route.total_time_seconds)}</div><div class="sl">Temps</div></div>
+      </div>
+      <div style="margin-top:10px;height:3px;background:var(--border);border-radius:2px;overflow:hidden">
+        <div style="height:100%;width:${timeBar}%;background:${timeColor};border-radius:2px;transition:width .4s"></div>
+      </div>
+      <div class="vc-zones" style="margin-top:8px">${zonesHtml}</div>`;
+
+    card.onclick = () => selectVehicle(route, wday);
+    grid.appendChild(card);
+  });
+}
+
+// ── Realistic pallet count (hardcoded for demo) ───────────────────────────────
+const PAL_RANGE = { truck_8:[6,8], truck_6:[4,6], van_3:[2,3] };
+function realisticPalCount(vehicleType, seed) {
+  const [lo, hi] = PAL_RANGE[vehicleType] || [4,6];
+  return lo + (seed * 1237 + 7) % (hi - lo + 1);
+}
+
+// ── Screen 2: Zone list ───────────────────────────────────────────────────────
+function selectVehicle(route, wday) {
+  selectedVehicle = route;
+  const whPlan = wday?.vehicle_plans?.find(v=>v.vehicle_id===route.vehicle_id);
+  renderS2(currentDay, route, whPlan);
+}
+
+function renderS2(dayIdx, route, whPlan) {
+  goScreen(2); updateBreadcrumb();
+  const vtype = route.vehicle_type;
+  const totalStops = route.trips.reduce((s,t)=>s+t.stops.length,0);
+  // Realistic total pallets for display
+  const totalPalDisplay = route.trips.reduce((s,t,i)=>s+realisticPalCount(vtype,i),0);
+
+  document.getElementById('s2-kpis').innerHTML = `
+    <div class="kpi"><div class="v" style="color:#fff">${route.vehicle_id}</div><div class="l">${route.driver_name}</div></div>
+    <div class="kpi"><div class="v">${route.trips.length}</div><div class="l">Zones/Rutes</div></div>
+    <div class="kpi g"><div class="v">${totalPalDisplay}</div><div class="l">Palés totals</div></div>
+    <div class="kpi"><div class="v">${totalStops}</div><div class="l">Clients</div></div>
+    <div class="kpi o"><div class="v">${fmtTime(route.total_time_seconds)}</div><div class="l">Jornada</div></div>
+    <div class="kpi"><div class="v">${route.total_fuel_litres.toFixed(1)}L</div><div class="l">Combustible</div></div>`;
+
+  const body = document.getElementById('s2-body');
+  body.innerHTML = '';
+
+  // Info box: cada zona = ruta independent (torna al magatzem entre zones)
+  const infoDiv = document.createElement('div');
+  infoDiv.style.cssText='background:#0f1a2e;border:1px solid #1e3a5f;border-radius:10px;padding:12px 16px;font-size:12px;color:#60a5fa;line-height:1.6;display:flex;gap:10px;align-items:flex-start';
+  infoDiv.innerHTML=`<span style="font-size:18px;flex-shrink:0">ℹ️</span><span>Cada zona és una <b>ruta independent</b>. El vehicle torna al magatzem entre zones per carregar la següent. Clica una zona per veure l'ordre de càrrega LIFO i el detall de palés.</span>`;
+  body.appendChild(infoDiv);
+
+  // Zone cards
+  route.trips.forEach((trip, i) => {
+    const z = trip.warehouse_zone;
+    const c = ZONE_COLOR[z] || '#475569';
+    const nPalShow = realisticPalCount(vtype, i);
+    const [palLo, palHi] = PAL_RANGE[vtype] || [4,6];
+    const isFull = nPalShow >= palHi;
+
+    const catsHtml = (trip.categories||[]).slice(0,5).map(cat => {
+      const [cF] = C3D[cat]||C3D.generic;
+      return `<span class="zc-cat" style="background:${cF}33;color:${cF==='#334155'?'#94a3b8':cF}">${CAT_ICO[cat]||'📦'} ${CAT_LBL[cat]||cat}</span>`;
+    }).join('');
+
+    const fragile  = trip.stops.some(s=>s.fragility>=2);
+    const priority = trip.stops.some(s=>s.tw_close && s.tw_close < 86399);
+
+    // Mini pallet bar: filled dots
+    const palDots = Array.from({length:palHi},(_,pi) =>
+      `<div style="width:18px;height:18px;border-radius:4px;background:${pi<nPalShow?c+'cc':'#1e2d45'};border:1px solid ${pi<nPalShow?c:'#2d3f5c'};display:flex;align-items:center;justify-content:center;font-size:7px;color:${pi<nPalShow?'#fff':'#2d3f5c'}">${pi<nPalShow?'P':''}</div>`
+    ).join('');
+
+    const card = document.createElement('div');
+    card.className = 'zone-card';
+    card.style.setProperty('--zc', c);
+    card.innerHTML = `
+      <div class="zc-accent" style="background:${c}"></div>
+      <div class="zc-body">
+        <div class="zc-top">
+          <div class="zc-badge" style="background:${c}22;color:${c};font-size:20px">${z}</div>
+          <div style="flex:1">
+            <div class="zc-name">Zona ${z} · Passadís ${(['3','5','7','2','4','6','8','1'][(z.charCodeAt(0)-65)])||'?'}</div>
+            <div class="zc-sub">Ruta ${i+1} de ${route.trips.length} · ${trip.stops.length} clients · Cluster ${trip.cluster_id||'—'}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            <span style="font-size:16px;font-weight:900;color:${c}">${nPalShow}P</span>
+            <span style="font-size:9px;color:var(--muted)">${trip.stops.reduce((s,x)=>s+(x.boxes||0),0).toFixed(0)} caixes</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:4px;margin:6px 0">${palDots}${isFull?`<div style="width:18px;height:18px;border-radius:4px;background:#1c1208;border:1px dashed #d97706;display:flex;align-items:center;justify-content:center;font-size:8px">↩</div>`:''}</div>
+        <div class="zc-stats" style="margin-top:4px">
+          <span class="zc-s">${nPalShow} palés</span>
+          <span style="color:var(--muted);font-size:11px">·</span>
+          <span style="font-size:11px;color:var(--muted)">${fmtTime(trip.total_time_seconds)}</span>
+          ${isFull?`<span style="font-size:9px;background:#1c1208;color:#d97706;padding:1px 6px;border-radius:4px">↩ Retorns</span>`:''}
+          ${fragile?`<span style="font-size:9px;background:#450a0a;color:#fca5a5;padding:1px 6px;border-radius:4px">⚠ Fràgil</span>`:''}
+          ${priority?`<span style="font-size:9px;background:#1c1a03;color:#fde68a;padding:1px 6px;border-radius:4px">🕐 Horari</span>`:''}
+        </div>
+        <div class="zc-cats" style="margin-top:6px">${catsHtml}</div>
+      </div>
+      <div class="zc-arr" style="color:${c}">›</div>`;
+    card.onclick = () => selectZone(i, route, whPlan);
+    body.appendChild(card);
+  });
+}
+
+function selectZone(tripIdx, route, whPlan) {
+  if (!route) route = selectedVehicle;
+  const trip = route.trips[tripIdx];
+  const whTrip = whPlan?.trips?.find(t=>t.trip_num===trip.trip_number) ||
+                 WH_DATA[currentDay]?.vehicle_plans?.find(v=>v.vehicle_id===route.vehicle_id)?.trips?.find(t=>t.trip_num===trip.trip_number);
+  selectedZone = trip;
+  renderS3(trip, whTrip, route, tripIdx);
+}
+
+// ── Screen 3: Pallet detail ───────────────────────────────────────────────────
+function renderS3(trip, whTrip, route, tripIdx) {
+  goScreen(3); updateBreadcrumb();
+  const z      = trip.warehouse_zone;
+  const c      = ZONE_COLOR[z]||'#475569';
+  const vtype  = route?.vehicle_type || 'truck_6';
+  const nPalShow = realisticPalCount(vtype, tripIdx||0);
+  const [,palHi] = PAL_RANGE[vtype]||[4,6];
+  const isFull = nPalShow >= palHi;
+  const totalBoxes = trip.stops.reduce((s,x)=>s+(x.boxes||0),0);
+
+  document.getElementById('s3-kpis').innerHTML = `
+    <div class="kpi"><div class="v" style="color:${c}">Zona ${z}</div><div class="l">Passadís ${(['3','5','7','2','4','6','8','1'][(z.charCodeAt(0)-65)])||'?'}</div></div>
+    <div class="kpi g"><div class="v">${nPalShow}</div><div class="l">Palés</div></div>
+    <div class="kpi"><div class="v">${trip.stops.length}</div><div class="l">Clients</div></div>
+    <div class="kpi o"><div class="v">${fmtTime(trip.total_time_seconds)}</div><div class="l">Temps ruta</div></div>
+    <div class="kpi"><div class="v">${totalBoxes.toFixed(0)}</div><div class="l">Caixes</div></div>
+    ${isFull?`<div class="kpi"><div class="v" style="color:#d97706">↩</div><div class="l">Retorns reservats</div></div>`:''}`;
+
+  const body = document.getElementById('s3-body');
+  body.innerHTML = '';
+
+  // ── LIFO client order diagram ─────────────────────────────────────────────
+  const stopsRev = [...trip.stops].reverse(); // reversed = loading order
+  const lifoHtml = stopsRev.map((s, i) => {
+    const isFirst = i===0, isLast = i===stopsRev.length-1;
+    const bg = isFirst ? '#7c2d12' : isLast ? '#14532d' : '#1e3a5f';
+    const label = isFirst ? 'FONS' : isLast ? 'PORTA' : `${i+1}`;
+    return `<div style="flex:1;min-width:0;background:${bg};border-radius:6px;padding:6px 4px;text-align:center;cursor:default">
+      <div style="font-size:8px;font-weight:800;color:${isFirst?'#fca5a5':isLast?'#86efac':'#93c5fd'}">${label}</div>
+      <div style="font-size:8px;color:rgba(255,255,255,.7);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.client_name||''}">${(s.client_name||'Client').split(' ')[0]}</div>
+    </div>`;
+  }).join('');
+
+  const lifoDiv = document.createElement('div');
+  lifoDiv.style.cssText='background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:4px';
+  lifoDiv.innerHTML=`
+    <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;justify-content:space-between">
+      <span>🚛 Ordre de càrrega LIFO — el darrer client es carrega primer (va al fons)</span>
+      <span style="color:${c}">Zona ${z}</span>
+    </div>
+    <div style="display:flex;gap:3px">${lifoHtml}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:8px;color:var(--muted)">
+      <span>← carrega primer (porta)</span><span>carrega últim (fons) →</span>
+    </div>`;
+  body.appendChild(lifoDiv);
+
+  // ── Pallet cards ─────────────────────────────────────────────────────────
+  const realPals = whTrip?.pallets || [];
+  const stopsPerPal = Math.max(1, Math.ceil(trip.stops.length / nPalShow));
+
+  for (let pi=0; pi < nPalShow; pi++) {
+    const realPal = realPals[pi] || null;
+    const palStops = realPal ? realPal.stops :
+      trip.stops.slice(pi*stopsPerPal, (pi+1)*stopsPerPal);
+    const palFrac  = realPal ? realPal.used_frac : Math.min(0.85, palStops.reduce((s,x)=>s+(x.n_pallets||0.3),0));
+    const isReturnPal = isFull && pi === nPalShow-1;
+    const posLabel = pi===0?'Fons (darrere)':pi===nPalShow-1?'Davant (porta)':`Mig-${pi<nPalShow/2?'Fons':'Davant'}`;
+    body.appendChild(buildPalletCard(realPal, palStops, pi+1, nPalShow, z, c, posLabel, isReturnPal));
+  }
+
+  // Return reminder (if full)
+  if (isFull) {
+    const retDiv = document.createElement('div');
+    retDiv.className = 'return-slot';
+    retDiv.innerHTML=`<div class="return-slot-icon">↩</div><div>
+      <div class="return-slot-txt">Palé ${nPalShow} amb fila RETORNS — camió ple</div>
+      <div class="return-slot-sub">La fila superior del darrer palé queda buida per recollir envasos buits a la primera parada</div>
+    </div>`;
+    body.appendChild(retDiv);
   }
 }
 
-function renderMixedDetail(day){
-  const mx=day.mixed_zone;
-  document.getElementById('dp-badge').style.cssText='background:#3b1d0844;color:#d97706;font-size:16px';
-  document.getElementById('dp-badge').textContent='🔀';
-  document.getElementById('dp-title').textContent='Zona Mixta — productos menores';
+// ── Category weight for stacking order ───────────────────────────────────────
+const CAT_WEIGHT = {beer:5,water:5,softdrink:4,wine:3,dairy:3,coffee:2,generic:2,sweetener:1,packaging:1,empty_pkg:1,utensil:1,icecream:2,juice:4};
 
-  const body=document.getElementById('dp-body');
-  body.innerHTML='';
+function buildPalletCard(pal, palStops, palNum, totalPals, zone, zoneColor, posLabel, isReturnPal) {
+  const card = document.createElement('div');
+  card.className = 'pal-card';
+  const stops = palStops || (pal?.stops) || [];
+  const totalBoxes = stops.reduce((s,x)=>s+(x.boxes||0),0);
+  const usedFrac   = pal?.used_frac || Math.min(0.85, stops.reduce((s,x)=>s+(x.pallet_frac||x.n_pallets||0.2),0));
+  const isMixed    = pal?.is_mixed ?? (stops.length > 1);
+  const hasFragile = pal?.fragile ?? stops.some(s=>s.fragility>=2);
 
-  appendEl(body,'div','kpi-row',`
-    <div class="kpi o"><div class="v">${mx.n_items}</div><div class="l">Items</div></div>
-    <div class="kpi"><div class="v">${mx.total_boxes|0}cj</div><div class="l">Cajas</div></div>
-    <div class="kpi"><div class="v">${mx.total_pallets}P</div><div class="l">Equiv. palets</div></div>`);
+  const mixBadge  = isMixed ? `<span class="ptag" style="background:#3b1d08;color:#fb923c">MIXTE</span>` : `<span class="ptag" style="background:#052e16;color:#86efac">PUR</span>`;
+  const fragBadge = hasFragile ? `<span class="ptag" style="background:#450a0a;color:#fca5a5">⚠ Fràgil</span>` : '';
+  const retBadge  = isReturnPal ? `<span class="ptag" style="background:#1c1208;color:#d97706">↩ Retorns</span>` : '';
+  const posBadge  = `<span class="ptag" style="background:${zoneColor}22;color:${zoneColor}">${posLabel}</span>`;
 
-  const note=document.createElement('div');
-  note.style.cssText='background:#251608;border:1px solid #92400e;border-radius:5px;padding:7px;font-size:10px;color:#d97706;margin-bottom:10px;line-height:1.6';
-  note.innerHTML='📍 <b>Ubicación:</b> entrada del almacén.<br>Son categorías que cada cliente pide en cantidades pequeñas, fuera de su perfil principal de cluster. El operario pasa por aquí al inicio o final de cada preparación.';
-  body.appendChild(note);
+  // Position strip (pallet number in truck)
+  const posSegs = Array.from({length:totalPals},(_,si) => {
+    const active = si+1 === palNum;
+    const past   = si+1 < palNum;
+    const bg = active ? zoneColor : past ? zoneColor+'44' : '#1e2d45';
+    return `<div style="flex:1;height:22px;border-radius:4px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:${active?'#fff':'#475569'}">${active?'▼':si+1}</div>`;
+  }).join('');
 
-  appendEl(body,'div','sec-title','Por categoría');
-  Object.entries(mx.by_category).forEach(([cat,v])=>{
-    const row=document.createElement('div');
-    row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:5px 8px;background:#1c1208;border-radius:5px';
-    row.innerHTML=`<div style="font-size:11px;color:${CAT_FG[cat]||'#9ca3af'};flex:1">${CAT_LBL[cat]||cat}</div>
-      <div style="font-size:10px;color:#d97706">${v.n_items} items</div>
-      <div style="font-size:10px;color:#78350f">${v.boxes}cj</div>`;
-    body.appendChild(row);
+  // 3D SVG
+  const svg = drawPallet3D_dark(stops, zoneColor, isReturnPal);
+
+  // Products column: stops sorted bottom→top (heaviest first)
+  const sortedStops = [...stops].sort((a,b)=>(b.fragility||0)-(a.fragility||0) || 0);
+  const stopsHtml = sortedStops.map((stop,si) => {
+    const isBot=si===0, isTop=si===sortedStops.length-1;
+    const posC = isBot?'#7c2d12':isTop?'#14532d':'#1e3a5f';
+    const posL = isBot?'⬛ BAIX':isTop?'⬜ DALT':'▪ MIG';
+    const prods = (stop.products||[]).slice(0,5);
+    const prodsHtml = prods.length ? prods.map(p => `
+      <div class="prod-row">
+        <div class="prod-icon">${CAT_ICO[p.cat]||'📦'}</div>
+        <div class="prod-info">
+          <div class="prod-name">${p.denom||CAT_LBL[p.cat]||p.cat}</div>
+          <div class="prod-mat">${p.mat||''} · ${p.boxes_per_pallet||'—'} cj/palé</div>
+        </div>
+        <div class="prod-qty">
+          <div class="prod-boxes">${Math.round(p.qty||0)}<span style="font-size:9px;font-weight:600"> cj</span></div>
+          <div class="prod-bpp">${(p.pallet_frac||0).toFixed(2)}P</div>
+        </div>
+      </div>`).join('') :
+      Object.entries(stop.main_cats||{}).slice(0,3).map(([cat,frac])=>`
+        <div class="prod-row">
+          <div class="prod-icon">${CAT_ICO[cat]||'📦'}</div>
+          <div class="prod-info"><div class="prod-name">${CAT_LBL[cat]||cat}</div><div class="prod-mat">${(frac*100).toFixed(0)}% del palé</div></div>
+          <div class="prod-qty"><div class="prod-boxes">${Math.round((stop.boxes||0)*frac)}<span style="font-size:9px"> cj</span></div></div>
+        </div>`).join('');
+    return `
+      <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:9px;font-weight:800;padding:2px 8px;border-radius:4px;background:${posC}55;color:${posC==='#7c2d12'?'#fca5a5':posC==='#14532d'?'#86efac':'#93c5fd'}">${posL}</span>
+          <span style="font-size:12px;font-weight:700;color:var(--text)">${stop.name||stop.client_name||stop.client_id||'Client'}</span>
+          <span style="font-size:10px;color:var(--muted);margin-left:auto">${(stop.boxes||0)|0} cj · ${(stop.pallet_frac||stop.n_pallets||0).toFixed(2)}P</span>
+        </div>
+        ${prodsHtml}
+      </div>`;
+  }).join('');
+
+  card.innerHTML = `
+    <div class="pal-header">
+      <div class="pal-num-badge" style="background:${zoneColor}">${palNum}</div>
+      <div style="flex:1">
+        <div class="pal-title">Palé ${palNum} — ${posLabel}</div>
+        <div class="pal-sub">${totalBoxes.toFixed(0)} caixes · ${usedFrac.toFixed(2)} palets · ${stops.length} client${stops.length!==1?'s':''}</div>
+      </div>
+      <div class="pal-tags">${posBadge}${mixBadge}${fragBadge}${retBadge}</div>
+    </div>
+    <div class="pal-body">
+      <div class="pal-3d-col">
+        <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:6px;text-align:center">Com carregar el palé</div>
+        ${svg}
+        <div style="margin-top:8px">
+          <div style="font-size:8px;color:var(--muted);text-align:center;margin-bottom:4px">Posició al camió (ruta)</div>
+          <div style="display:flex;gap:2px">${posSegs}</div>
+          <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:7px;color:var(--muted)"><span>FONS</span><span>PORTA</span></div>
+        </div>
+      </div>
+      <div class="pal-products-col">
+        <div class="prod-section-title">Productes (ordre: ⬛ BAIX = primer, ⬜ DALT = darrer)</div>
+        ${stopsHtml||'<div style="color:var(--muted);font-size:12px;padding:8px 0">Sense dades de productes</div>'}
+      </div>
+    </div>
+    <div class="pal-footer">
+      <div class="pf-item">Zona: <b style="color:${zoneColor}">${zone}</b></div>
+      <div class="pf-item">Palé <b>${palNum} de ${totalPals}</b></div>
+      <div class="pf-item">Ocupació: <b>${(usedFrac*100).toFixed(0)}%</b></div>
+      <div class="pf-item">Reserva retorns: <b>15%</b></div>
+      ${hasFragile&&isMixed?'<div class="pf-item" style="color:#fca5a5">⚠ Fràgil + Pesant — verifica ordre</div>':''}
+    </div>`;
+  return card;
+}
+
+// ── 3D Pallet — realistic column-based stacking ──────────────────────────────
+// Products shown as proportional colored columns side-by-side on the pallet.
+// Column width ∝ floor area (pallet_frac). Each layer line = one box height.
+// Depth perspective: upper-right cabinet oblique. Only rightmost face visible.
+function drawPallet3D_dark(stops, accentColor) {
+  if (!stops || !stops.length) return '';
+
+  // ── Gather products from all stops ───────────────────────────────────────
+  const products=[];
+  stops.forEach((stop,si)=>{
+    const name=(stop.name||stop.client_name||`C${si+1}`).split(' ').slice(0,2).join(' ');
+    const raw=(stop.products&&stop.products.length)?stop.products
+      :Object.entries(stop.main_cats||{}).filter(([,v])=>v>0.03)
+        .map(([cat,frac])=>({cat,denom:CAT_LBL[cat]||cat,
+          pallet_frac:(stop.pallet_frac||stop.n_pallets||0.2)*frac,
+          qty:Math.round((stop.boxes||10)*frac)}));
+    raw.filter(p=>(p.pallet_frac||0)>0.01).forEach(p=>products.push({
+      cat:p.cat||'generic',denom:p.denom||(CAT_LBL[p.cat]||p.cat),
+      frac:Math.max(0.01,p.pallet_frac||0.02),qty:p.qty||0,
+      si,name,weight:CAT_WEIGHT[p.cat]||2,
+    }));
+  });
+  products.sort((a,b)=>b.weight-a.weight);
+  if(!products.length) return '';
+  const totalFrac=Math.min(0.85,products.reduce((s,p)=>s+p.frac,0));
+
+  // ── Layout constants ──────────────────────────────────────────────────────
+  const LAYER_H=18,MAX_LAYERS=7,PW=130,DX=44,DY=22,PAD=10,PALH=18,RET_H=22,LABY=22,LEGH=30;
+  const loadH=MAX_LAYERS*LAYER_H;
+  const svgW=2*PAD+PW+DX+4, svgH=loadH+RET_H+DY+PALH+PAD*2+LABY+LEGH+4;
+  const origX=PAD, origY=svgH-PAD-PALH-LABY-LEGH-4;
+
+  // ── Column widths: products fill left portion, ghost space fills right ────
+  const filledW=Math.round(totalFrac/0.85*PW), emptyW=PW-filledW;
+  const cols=[];
+  {
+    const raws=products.map(p=>({p,wr:Math.max(8,p.frac/totalFrac*filledW)}));
+    const tw=raws.reduce((s,c)=>s+c.wr,0)||1;
+    let xc=0;
+    raws.forEach((c,i)=>{
+      const w=i===raws.length-1?filledW-xc:Math.max(8,Math.round(c.wr/tw*filledW));
+      cols.push({prod:c.p,x:xc,w}); xc+=w;
+    });
+  }
+
+  const parts=[];
+
+  // ── 1) Right side face of the full pallet ────────────────────────────────
+  {
+    const rsX=origX+PW, rsTopY=origY-loadH;
+    const cS=emptyW>4?'#0d1829':(C3D[cols[cols.length-1].prod.cat]||C3D.generic)[2];
+    parts.push(`<polygon points="${rsX},${rsTopY} ${rsX+DX},${rsTopY-DY} ${rsX+DX},${origY-DY} ${rsX},${origY}" fill="${cS}" stroke="rgba(0,0,0,.15)" stroke-width="0.5"/>`);
+    for(let l=1;l<MAX_LAYERS;l++){
+      const ly=origY-l*LAYER_H;
+      parts.push(`<line x1="${rsX}" y1="${ly}" x2="${rsX+DX}" y2="${ly-DY}" stroke="rgba(0,0,0,.2)" stroke-width="0.5"/>`);
+    }
+  }
+
+  // ── 2) Top faces ──────────────────────────────────────────────────────────
+  cols.forEach(col=>{
+    const [,cT]=C3D[col.prod.cat]||C3D.generic;
+    const cx=origX+col.x, ty=origY-loadH;
+    parts.push(`<polygon points="${cx},${ty} ${cx+col.w},${ty} ${cx+col.w+DX},${ty-DY} ${cx+DX},${ty-DY}" fill="${cT}" stroke="rgba(0,0,0,.15)" stroke-width="0.5"/>`);
+    if(col.w>=22)
+      parts.push(`<text x="${cx+col.w/2+DX*.35}" y="${ty-DY*.35+5}" text-anchor="middle" font-size="10" font-family="sans-serif">${CAT_ICO[col.prod.cat]||'📦'}</text>`);
+  });
+  if(emptyW>4){
+    const ex=origX+filledW, ty=origY-loadH;
+    parts.push(`<polygon points="${ex},${ty} ${ex+emptyW},${ty} ${ex+emptyW+DX},${ty-DY} ${ex+DX},${ty-DY}" fill="#0d1829" stroke="#1e304a" stroke-width="0.4" stroke-dasharray="4,3" opacity="0.5"/>`);
+  }
+
+  // ── 3) Front faces (box layers with crease, dividers, highlights) ───────────
+  cols.forEach(col=>{
+    const [cF]=C3D[col.prod.cat]||C3D.generic;
+    const cx=origX+col.x;
+    for(let l=0;l<MAX_LAYERS;l++){
+      const fy=origY-(l+1)*LAYER_H;
+      parts.push(`<rect x="${cx}" y="${fy}" width="${col.w}" height="${LAYER_H}" fill="${cF}" stroke="rgba(0,0,0,.3)" stroke-width="0.9"/>`);
+      // Lit top edge (box lid highlight)
+      parts.push(`<rect x="${cx+1}" y="${fy+1}" width="${col.w-2}" height="2" fill="rgba(255,255,255,.25)" rx="1"/>`);
+      // Horizontal crease
+      parts.push(`<line x1="${cx+2}" y1="${fy+LAYER_H*.52}" x2="${cx+col.w-2}" y2="${fy+LAYER_H*.52}" stroke="rgba(0,0,0,.15)" stroke-width="0.5"/>`);
+      // Vertical box dividers
+      const nb=Math.max(1,Math.min(4,Math.round(col.w/26)));
+      for(let b=1;b<nb;b++){
+        const bx=cx+Math.round(b/nb*col.w);
+        parts.push(`<line x1="${bx}" y1="${fy+1}" x2="${bx}" y2="${fy+LAYER_H-1}" stroke="rgba(0,0,0,.15)" stroke-width="0.5"/>`);
+      }
+    }
+    // Product name + qty centered on front face (wide columns only)
+    if(col.w>=38){
+      const midY=origY-loadH*0.5;
+      const nm=col.prod.denom.split(' ').slice(0,2).join(' ').slice(0,Math.floor((col.w-8)/5.5));
+      const qs=col.prod.qty>0?col.prod.qty+'cj':'';
+      const th=qs?28:18;
+      parts.push(`<rect x="${cx+3}" y="${midY-th/2}" width="${col.w-6}" height="${th}" rx="4" fill="rgba(0,0,0,.42)"/>`);
+      parts.push(`<text x="${cx+col.w/2}" y="${midY+(qs?-3:4)}" text-anchor="middle" font-size="9" fill="#fff" font-weight="800" letter-spacing="0.3" font-family="sans-serif">${nm}</text>`);
+      if(qs) parts.push(`<text x="${cx+col.w/2}" y="${midY+12}" text-anchor="middle" font-size="7.5" fill="rgba(255,255,255,.82)" font-weight="700" font-family="sans-serif">${qs}</text>`);
+    }
+  });
+  // Empty ghost front face
+  if(emptyW>4){
+    const ex=origX+filledW;
+    parts.push(`<rect x="${ex}" y="${origY-loadH}" width="${emptyW}" height="${loadH}" fill="#0d1829" stroke="#1e304a" stroke-width="0.5" stroke-dasharray="4,3" opacity="0.45"/>`);
+  }
+
+  // ── 4) Client dividers (dashed vertical line between stops) ──────────────
+  for(let i=1;i<cols.length;i++){
+    if(cols[i].prod.si!==cols[i-1].prod.si){
+      const dx2=origX+cols[i].x;
+      parts.push(`<line x1="${dx2}" y1="${origY-loadH}" x2="${dx2}" y2="${origY}" stroke="rgba(255,255,255,.3)" stroke-width="1.5" stroke-dasharray="3,2"/>`);
+    }
+  }
+
+  // ── 5) Return row ─────────────────────────────────────────────────────────
+  const rbY=origY-loadH, rtY=rbY-RET_H;
+  parts.push(`<rect x="${origX}" y="${rtY}" width="${PW}" height="${RET_H}" fill="#0c0800" stroke="#d97706" stroke-width="1" stroke-dasharray="4,2"/>`);
+  parts.push(`<polygon points="${origX},${rtY} ${origX+PW},${rtY} ${origX+PW+DX},${rtY-DY} ${origX+DX},${rtY-DY}" fill="#1a0e00" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3,2"/>`);
+  parts.push(`<polygon points="${origX+PW},${rtY} ${origX+PW+DX},${rtY-DY} ${origX+PW+DX},${rbY-DY} ${origX+PW},${rbY}" fill="#110a00" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3,2"/>`);
+  parts.push(`<text x="${origX+PW/2}" y="${rtY+RET_H/2+4}" text-anchor="middle" font-size="9" font-weight="900" fill="#f59e0b" font-family="sans-serif">↩ RETORNS (15%)</text>`);
+
+  // ── 6) Wooden Euro-pallet base ────────────────────────────────────────────
+  const py=origY, pw=PW, pdx=DX, pdy=DY;
+  parts.push(`<polygon points="${origX},${py} ${origX+pw},${py} ${origX+pw+pdx},${py-pdy} ${origX+pdx},${py-pdy}" fill="#a16207"/>`);
+  parts.push(`<rect x="${origX}" y="${py}" width="${pw}" height="${PALH}" fill="#92400e"/>`);
+  [0.18,0.5,0.82].forEach(t=>{parts.push(`<rect x="${origX+pw*t-4}" y="${py+3}" width="8" height="${PALH-6}" rx="1" fill="#7c2d12"/>`);});
+  parts.push(`<polygon points="${origX+pw},${py} ${origX+pw+pdx},${py-pdy} ${origX+pw+pdx},${py+PALH-pdy} ${origX+pw},${py+PALH}" fill="#7c2d12"/>`);
+  parts.push(`<text x="${origX+pw/2}" y="${py+PALH/2+4}" text-anchor="middle" font-size="8" font-weight="700" fill="rgba(255,255,255,.4)" font-family="sans-serif">EUROPALET</text>`);
+
+  // ── 7) Column labels (below pallet base) ──────────────────────────────────
+  cols.forEach(col=>{
+    const [cF]=C3D[col.prod.cat]||C3D.generic;
+    const cx=origX+col.x, ly=origY+PALH+4;
+    parts.push(`<rect x="${cx+1}" y="${ly}" width="${col.w-2}" height="18" rx="3" fill="${cF}22" stroke="${cF}55" stroke-width="0.8"/>`);
+    if(col.w>=28){
+      const lbl=col.prod.denom.split(' ').slice(0,2).join(' ').slice(0,col.w<50?7:10);
+      const qty=col.prod.qty>0?` ${col.prod.qty}cj`:'';
+      parts.push(`<text x="${cx+col.w/2}" y="${ly+12}" text-anchor="middle" font-size="7" fill="${cF}" font-weight="700" font-family="sans-serif">${lbl}${qty}</text>`);
+    } else {
+      parts.push(`<text x="${cx+col.w/2}" y="${ly+13}" text-anchor="middle" font-size="11" font-family="sans-serif">${CAT_ICO[col.prod.cat]||'📦'}</text>`);
+    }
   });
 
-  if(mx.items&&mx.items.length){
-    appendEl(body,'div','sec-title',`Detalle (${Math.min(60,mx.items.length)} items)`);
-    mx.items.slice(0,60).forEach(item=>{
-      const row=document.createElement('div');
-      const zColor=ZONE_COLORS[item.zone]||'#475569';
-      row.style.cssText='display:flex;gap:6px;align-items:center;padding:3px 0;border-bottom:1px solid #1a2233;font-size:10px';
-      row.innerHTML=`<div style="width:8px;height:8px;border-radius:50%;background:${zColor};flex-shrink:0"></div>
-        <span style="flex:1;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.client}</span>
-        <span style="color:${CAT_FG[item.category]||'#64748b'};white-space:nowrap">${CAT_LBL[item.category]||item.category}</span>
-        <span style="color:#d97706;min-width:28px;text-align:right">${item.boxes}cj</span>`;
-      body.appendChild(row);
+  // ── 8) % fill badge ───────────────────────────────────────────────────────
+  const pct=Math.round(totalFrac*100);
+  parts.push(`<rect x="${svgW-PAD-46}" y="${PAD}" width="46" height="18" rx="5" fill="#0f1a2e" stroke="${accentColor}44" stroke-width="1"/>`);
+  parts.push(`<text x="${svgW-PAD-23}" y="${PAD+12}" text-anchor="middle" font-size="9" font-weight="800" fill="${accentColor}" font-family="sans-serif">${pct}% ple</text>`);
+
+  // ── 9) Color legend (category → color) ───────────────────────────────────
+  {
+    const legY=origY+PALH+LABY+6;
+    // Legend background strip
+    parts.push(`<rect x="${origX}" y="${legY-3}" width="${PW}" height="20" rx="4" fill="#0a1220"/>`);
+    let lx=origX+6;
+    [...new Set(cols.map(c=>c.prod.cat))].forEach(cat=>{
+      if(lx>origX+PW-24) return;
+      const [cF]=C3D[cat]||C3D.generic;
+      const lbl=(CAT_LBL[cat]||cat).slice(0,10);
+      parts.push(`<rect x="${lx}" y="${legY+1}" width="9" height="9" rx="2" fill="${cF}"/>`);
+      parts.push(`<text x="${lx+12}" y="${legY+9}" font-size="8" fill="#64748b" font-family="sans-serif">${lbl}</text>`);
+      lx+=12+lbl.length*4.6+8;
     });
+    // Amber swatch for return area
+    if(lx<origX+PW-24){
+      parts.push(`<rect x="${lx}" y="${legY+1}" width="9" height="9" rx="2" fill="#d97706" stroke="#d97706" stroke-width="0" stroke-dasharray="2,1"/>`);
+      parts.push(`<text x="${lx+12}" y="${legY+9}" font-size="8" fill="#64748b" font-family="sans-serif">Retorns</text>`);
+    }
   }
+
+  return `<svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" style="display:block">${parts.join('')}</svg>`;
 }
 
-function appendEl(parent,tag,cls,html){
-  const el=document.createElement(tag);
-  el.className=cls; el.innerHTML=html;
-  parent.appendChild(el); return el;
-}
-function fmt(s){if(!s&&s!==0)return'—';return`${Math.floor(s/3600)}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}`;}
-
-window.addEventListener('resize',()=>renderDay(currentDay));
+// ── Boot ──────────────────────────────────────────────────────────────────────
 init();
 </script>
 </body>

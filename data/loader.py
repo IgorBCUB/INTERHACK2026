@@ -145,6 +145,8 @@ def make_vehicle(vid: str, driver_name: str, vehicle_type: str = "truck_6") -> V
         capacity_pallets=cap_pallets,
         has_side_access=side_access,
         lifo_penalty_multiplier=lifo_mult,
+        max_route_seconds=config.DEFAULT_MAX_ROUTE_SECONDS,
+        max_daily_seconds=config.DEFAULT_MAX_DAILY_SECONDS,
     )
 
 
@@ -284,6 +286,10 @@ def load_data(
             config.UNLOAD_BASE_SECONDS,
             config.UNLOAD_BASE_SECONDS + int(frac * config.UNLOAD_PER_PALLET_S),
         )
+        # Parking time: deterministic per client (hash → uniform in [min, max])
+        # Using hash so cost function is stable across SA iterations
+        park_range = config.PARKING_MAX_SECONDS - config.PARKING_MIN_SECONDS
+        parking_time = config.PARKING_MIN_SECONDS + (abs(hash(cid)) % (park_range + 1))
         o = Order(
             id=raw["id"],
             client_id=cid,
@@ -296,6 +302,7 @@ def load_data(
             tw_open=tw_open,
             tw_close=tw_close,
             service_time=service_time,
+            parking_time=parking_time,
             priority=priority,
             n_references=len(raw["materials"]),
             categories=tuple(sorted(raw["categories"])),

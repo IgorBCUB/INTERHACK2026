@@ -29,12 +29,11 @@ def _assign_vehicles_to_clusters(
 ) -> None:
     """
     Assign vehicles to clusters, spreading load evenly across the whole fleet.
-    Uses trip count (not time) as the load metric to avoid over-conservative estimates.
+    Uses trip count (not time) as the load metric — daily cap enforced post-routing.
     """
     vehicle_trip_counts: dict = {v.id: 0 for v in vehicles}
     n_clusters = len(clusters)
     n_vehicles = len(vehicles)
-    # Each vehicle gets ceil(n_clusters / n_vehicles) + 1 trips max to absorb any imbalance
     max_trips_per_vehicle = max(2, int(np.ceil(n_clusters / max(n_vehicles, 1))) + 1)
 
     sorted_clusters = sorted(clusters, key=lambda c: -c.n_pallets)
@@ -61,37 +60,31 @@ def _pick_vehicle_reload(
     n = cluster.n_pallets
     sorted_by_trips = sorted(vehicles, key=lambda x: vehicle_trip_counts.get(x.id, 0))
 
-    # van_3: only tiny priority non-fragile
     if n <= 2 and cluster.has_priority and not cluster.has_fragile:
         for v in sorted_by_trips:
             if v.vehicle_type == "van_3" and n <= v.capacity_pallets:
                 if vehicle_trip_counts.get(v.id, 0) < max_trips:
                     return v
 
-    # Prefer truck_6 for ≤6 pallets
     if n <= 6:
         for v in sorted_by_trips:
             if v.vehicle_type == "truck_6" and n <= v.capacity_pallets:
                 if vehicle_trip_counts.get(v.id, 0) < max_trips:
                     return v
 
-    # truck_8 for larger or fallback
     for v in sorted_by_trips:
         if v.vehicle_type == "truck_8" and n <= v.capacity_pallets:
             if vehicle_trip_counts.get(v.id, 0) < max_trips:
                 return v
 
-    # Any vehicle with capacity under limit
     for v in sorted_by_trips:
         if n <= v.capacity_pallets and vehicle_trip_counts.get(v.id, 0) < max_trips:
             return v
 
-    # Force-assign to least-busy vehicle (overloaded — cost function penalises it)
     for v in sorted_by_trips:
         if vehicle_trip_counts.get(v.id, 0) < max_trips:
             return v
 
-    # Last resort: any vehicle regardless of trip count
     return sorted_by_trips[0] if sorted_by_trips else None
 
 

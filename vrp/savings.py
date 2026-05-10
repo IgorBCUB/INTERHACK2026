@@ -20,14 +20,14 @@ import config
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _trip_duration(stops: List[Order], matrix: List[List[float]], order_idx: Dict[str, int]) -> float:
-    """Estimate total route duration (travel + service)."""
+    """Estimate total route duration (travel + parking + unload)."""
     if not stops:
         return 0.0
     dur = 0.0
     prev = 0
     for s in stops:
         idx = order_idx[s.id]
-        dur += matrix[prev][idx] + s.service_time
+        dur += matrix[prev][idx] + s.parking_time + s.service_time
         prev = idx
     dur += matrix[prev][0]
     return dur

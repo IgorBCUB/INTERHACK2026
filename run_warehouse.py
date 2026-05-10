@@ -85,23 +85,38 @@ def load_day_orders(date_str: str, client_zones: dict, density: dict, tw_data: d
                 "tw_close":   tw_close,
             }
         cls = classify(mat, denom)
-        pal = qty / (density.get(mat, 80) or 80)
+        bpp = density.get(mat, 80) or 80   # boxes per pallet (real from ZM040)
+        pal = qty / bpp
         cat = cls["category"]
         orders[cid]["cats"][cat]   += pal
         orders[cid]["boxes"][cat]  += qty
         orders[cid]["total_boxes"] += qty
         orders[cid]["fragility"]    = max(orders[cid]["fragility"], cls["fragility_score"])
         orders[cid]["weight"]       = max(orders[cid]["weight"],    cls["weight_score"])
+        # Store real product line so pallets can show exact products
+        if "products" not in orders[cid]:
+            orders[cid]["products"] = []
+        orders[cid]["products"].append({
+            "mat":              mat,
+            "denom":            denom,
+            "qty":              qty,
+            "boxes_per_pallet": bpp,
+            "pallet_frac":      round(pal, 4),
+            "cat":              cat,
+            "fragility":        cls["fragility_score"],
+            "weight":           cls["weight_score"],
+        })
     wb.close()
 
     # Compute pallet fraction and zone
     for cid, o in orders.items():
         o["pallet_frac"] = sum(o["cats"].values())
         o["needs_pallet"] = o["pallet_frac"] >= 0.3
-        # Determine primary and mixed categories
         total_pal = o["pallet_frac"] or 1.0
         o["main_cats"]  = {c: v for c, v in o["cats"].items() if v / total_pal >= MIXED_THRESHOLD}
         o["mixed_cats"] = {c: v for c, v in o["cats"].items() if v / total_pal <  MIXED_THRESHOLD}
+        # Sort products: heaviest/most voluminous first (bottom of pallet)
+        o["products"].sort(key=lambda p: -p["pallet_frac"])
 
     return orders
 
@@ -201,6 +216,7 @@ def plan_pallets_for_trip(stops_delivery_order: list, orders: dict, vehicle_cap:
             "tw_close":    o["tw_close"],
             "main_cats":   {c: round(v, 3) for c, v in o["main_cats"].items()},
             "mixed_cats":  {c: round(v, 3) for c, v in o["mixed_cats"].items()},
+            "products":    o.get("products", []),  # real product lines from ZM040
         }
         current_pallet["stops"].append(stop_entry)
         current_pallet["used_frac"]   += stop_frac

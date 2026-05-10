@@ -18,13 +18,17 @@ DEPOT = {
 
 # ── Vehicle fleet defaults ─────────────────────────────────────────────────────
 DEFAULT_MAX_ROUTE_SECONDS = 8 * 3600      # 8 h max per route leg
-DEFAULT_MAX_DAILY_SECONDS = 10 * 3600     # 10 h driver day
+DEFAULT_MAX_DAILY_SECONDS = 8 * 3600      # 8 h max working day (total across all trips)
 DEFAULT_SERVICE_TIME_SECONDS = 600        # fallback only; real value set per order
 DEPOT_RELOAD_PENALTY_SECONDS = 1800       # 30 min penalisation per depot return
 
 # ── Unload time (proportional to order size) ───────────────────────────────────
 UNLOAD_BASE_SECONDS   = 300   # 5 min minimum per stop (any size)
 UNLOAD_PER_PALLET_S   = 420   # 7 min per full pallet (linear with pallet fraction)
+
+# ── Parking search time per stop (deterministic per client via hash) ───────────
+PARKING_MIN_SECONDS = 60    # 1 min  — easy street parking
+PARKING_MAX_SECONDS = 360   # 6 min  — busy urban area
 
 # ── Time window violation penalty ─────────────────────────────────────────────
 # Priority derived from window width (loader.py): 1=tight(<1h), 2=medium(1-4h), 3=wide(>4h)
@@ -86,9 +90,11 @@ WH_LIFO_MULTIPLIER = {
 }
 
 # ── Penalizaciones (segundos, escaladas por fragility_score) ──────────────────
-WH_PEN_FRAGILE_MIX      = 1500
-WH_PEN_STACK_VIOLATION  = 800
-WH_PEN_FRAGILE_DEEP_VAN = 1000
+WH_PEN_FRAGILE_MIX       = 1500
+WH_PEN_STACK_VIOLATION   = 800
+WH_PEN_FRAGILE_DEEP_VAN  = 1000
+# SA stacking: penalty per unit of depth × fragility for fragile stops buried deep
+STACKING_PEN_PER_DEPTH   = 600   # seconds per depth unit × fragility_score
 WH_PEN_LOAD_ORDER       = 200
 WH_PEN_OVER_CAPACITY    = 5000
 WH_PEN_RETURN_SPACE     = 400

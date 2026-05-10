@@ -95,7 +95,7 @@ def _approx_trip_time(stops: List[Order], matrix: List[List[float]], order_idx: 
     prev = 0
     for s in stops:
         idx = order_idx.get(s.id, 0)
-        t += matrix[prev][idx] + s.service_time
+        t += matrix[prev][idx] + s.parking_time + s.service_time
         prev = idx
     t += matrix[prev][0]
     return t

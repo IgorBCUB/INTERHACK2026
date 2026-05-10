@@ -32,6 +32,9 @@ class Order:
 
     zone: str = ""
 
+    # Pre-computed parking search time (seconds) — deterministic per client
+    parking_time: int = 0
+
     # ── Warehouse-aware fields (multilevel) ───────────────────────────────────
     n_references: int = 1                   # nº materiales distintos en el pedido
     categories: tuple = ()                  # ej ('beer','water')
@@ -72,8 +75,8 @@ class Vehicle:
     id: str
     driver_name: str
     capacity_boxes: float = 200.0   # legado / informativo
-    max_route_seconds: int = 28800  # 8 h
-    max_daily_seconds: int = 36000  # 10 h
+    max_route_seconds: int = 28800  # 8 h per single trip
+    max_daily_seconds: int = 28800  # 8 h total working day
     start_lat: float = 0.0
     start_lon: float = 0.0
 
@@ -118,6 +121,7 @@ class Solution:
     total_reload_penalty: float = 0.0
     unserved_orders: List[Order] = field(default_factory=list)
     cost: float = float("inf")
+    daily_time_per_vehicle: Dict[str, float] = field(default_factory=dict)
 
     def num_vehicles_used(self) -> int:
         return len({t.vehicle_id for t in self.trips})

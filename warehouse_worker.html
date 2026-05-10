@@ -378,6 +378,205 @@ function startLoading() {
   renderSection();
 }
 
+// ── 3D Pallet colours (front / top / right-side) ─────────────────────────────
+const C3D = {
+  beer:      ['#b45309','#f59e0b','#78350f'],
+  water:     ['#1d4ed8','#60a5fa','#1e3a8a'],
+  wine:      ['#6d28d9','#c084fc','#4c1d95'],
+  softdrink: ['#065f46','#34d399','#064e3b'],
+  dairy:     ['#0369a1','#7dd3fc','#0c4a6e'],
+  coffee:    ['#44403c','#a8a29e','#1c1917'],
+  sweetener: ['#7e22ce','#e879f9','#581c87'],
+  packaging: ['#3f6212','#a3e635','#365314'],
+  empty_pkg: ['#374151','#9ca3af','#111827'],
+  icecream:  ['#be185d','#f9a8d4','#831843'],
+  juice:     ['#b45309','#fbbf24','#92400e'],
+  generic:   ['#374151','#9ca3af','#1f2937'],
+  utensil:   ['#44403c','#a8a29e','#1c1917'],
+};
+
+function drawPallet3D(allLayers, currentClientId) {
+  if (!allLayers || !allLayers.length) return '';
+
+  // ── Gather products ───────────────────────────────────────────────────────
+  const products=[];
+  allLayers.forEach(lyr=>{
+    const isMine=lyr.client_id===currentClientId;
+    const raw=(lyr.products&&lyr.products.length)?lyr.products
+      :Object.entries({...(lyr.main_cats||{}), ...(lyr.mixed_cats||{})}).filter(([,v])=>v>0.03)
+        .map(([cat,frac])=>({cat,denom:CAT_LBL[cat]||cat,
+          pallet_frac:(lyr.pallet_frac||0.2)*frac,qty:Math.round((lyr.boxes||10)*frac)}));
+    raw.filter(p=>(p.pallet_frac||0)>0.01).forEach(p=>products.push({
+      cat:p.cat||'generic',denom:p.denom||(CAT_LBL[p.cat]||p.cat),
+      frac:Math.max(0.01,p.pallet_frac||0.02),qty:p.qty||0,
+      isMine,weight:p.weight||lyr.weight||2,
+    }));
+  });
+  products.sort((a,b)=>b.weight-a.weight);
+  if(!products.length) return '';
+  const totalFrac=Math.min(0.85,products.reduce((s,p)=>s+p.frac,0));
+
+  // ── Layout (light theme version of warehouse.html drawPallet3D_dark) ──────
+  const LAYER_H=18,MAX_LAYERS=7,PW=130,DX=44,DY=22,PAD=10,PALH=18,RET_H=22,LABY=22,LEGH=30;
+  const loadH=MAX_LAYERS*LAYER_H;
+  const svgW=2*PAD+PW+DX+4, svgH=loadH+RET_H+DY+PALH+PAD*2+LABY+LEGH+4;
+  const origX=PAD, origY=svgH-PAD-PALH-LABY-LEGH-4;
+
+  const filledW=Math.round(totalFrac/0.85*PW), emptyW=PW-filledW;
+  const cols=[];
+  {
+    const raws=products.map(p=>({p,wr:Math.max(8,p.frac/totalFrac*filledW)}));
+    const tw=raws.reduce((s,c)=>s+c.wr,0)||1;
+    let xc=0;
+    raws.forEach((c,i)=>{
+      const w=i===raws.length-1?filledW-xc:Math.max(8,Math.round(c.wr/tw*filledW));
+      cols.push({prod:c.p,x:xc,w}); xc+=w;
+    });
+  }
+
+  const parts=[];
+
+  // ── 1) Right side face ────────────────────────────────────────────────────
+  {
+    const rsX=origX+PW, rsTopY=origY-loadH;
+    const cS=emptyW>4?'#d1dae8':(C3D[cols[cols.length-1].prod.cat]||C3D.generic)[2];
+    parts.push(`<polygon points="${rsX},${rsTopY} ${rsX+DX},${rsTopY-DY} ${rsX+DX},${origY-DY} ${rsX},${origY}" fill="${cS}" stroke="rgba(0,0,0,.15)" stroke-width="0.5"/>`);
+    for(let l=1;l<MAX_LAYERS;l++){
+      const ly=origY-l*LAYER_H;
+      parts.push(`<line x1="${rsX}" y1="${ly}" x2="${rsX+DX}" y2="${ly-DY}" stroke="rgba(0,0,0,.18)" stroke-width="0.5"/>`);
+    }
+  }
+
+  // ── 2) Top faces ──────────────────────────────────────────────────────────
+  cols.forEach(col=>{
+    const [,cT]=C3D[col.prod.cat]||C3D.generic;
+    const cx=origX+col.x, ty=origY-loadH;
+    parts.push(`<polygon points="${cx},${ty} ${cx+col.w},${ty} ${cx+col.w+DX},${ty-DY} ${cx+DX},${ty-DY}" fill="${cT}" stroke="rgba(0,0,0,.12)" stroke-width="0.5"/>`);
+    if(col.w>=22)
+      parts.push(`<text x="${cx+col.w/2+DX*.35}" y="${ty-DY*.35+5}" text-anchor="middle" font-size="10" font-family="sans-serif">${CAT_ICO[col.prod.cat]||'📦'}</text>`);
+  });
+  if(emptyW>4){
+    const ex=origX+filledW, ty=origY-loadH;
+    parts.push(`<polygon points="${ex},${ty} ${ex+emptyW},${ty} ${ex+emptyW+DX},${ty-DY} ${ex+DX},${ty-DY}" fill="#e8edf3" stroke="#c5ccd8" stroke-width="0.4" stroke-dasharray="4,3" opacity="0.8"/>`);
+  }
+
+  // ── 3) Front faces ────────────────────────────────────────────────────────
+  cols.forEach(col=>{
+    const [cF]=C3D[col.prod.cat]||C3D.generic;
+    const cx=origX+col.x;
+    for(let l=0;l<MAX_LAYERS;l++){
+      const fy=origY-(l+1)*LAYER_H;
+      parts.push(`<rect x="${cx}" y="${fy}" width="${col.w}" height="${LAYER_H}" fill="${cF}" stroke="rgba(0,0,0,.25)" stroke-width="0.9"/>`);
+      // Lit top edge
+      parts.push(`<rect x="${cx+1}" y="${fy+1}" width="${col.w-2}" height="2" fill="rgba(255,255,255,.3)" rx="1"/>`);
+      parts.push(`<line x1="${cx+2}" y1="${fy+LAYER_H*.52}" x2="${cx+col.w-2}" y2="${fy+LAYER_H*.52}" stroke="rgba(0,0,0,.12)" stroke-width="0.5"/>`);
+      const nb=Math.max(1,Math.min(4,Math.round(col.w/26)));
+      for(let b=1;b<nb;b++){
+        const bx=cx+Math.round(b/nb*col.w);
+        parts.push(`<line x1="${bx}" y1="${fy+1}" x2="${bx}" y2="${fy+LAYER_H-1}" stroke="rgba(0,0,0,.12)" stroke-width="0.5"/>`);
+      }
+    }
+    // "← TU" highlight: white dashed border over the entire column
+    if(col.prod.isMine){
+      parts.push(`<rect x="${cx+1}" y="${origY-loadH}" width="${col.w-2}" height="${loadH-1}" fill="rgba(255,255,255,0.2)" stroke="white" stroke-width="2.5" stroke-dasharray="5,3" rx="2"/>`);
+    }
+    // Product name + qty centered on front face
+    if(col.w>=38){
+      const midY=origY-loadH*0.5;
+      const nm=col.prod.denom.split(' ').slice(0,2).join(' ').slice(0,Math.floor((col.w-8)/5.5));
+      const qs=col.prod.qty>0?col.prod.qty+'cj':'';
+      const th=qs?28:18;
+      parts.push(`<rect x="${cx+3}" y="${midY-th/2}" width="${col.w-6}" height="${th}" rx="4" fill="rgba(0,0,0,.38)"/>`);
+      parts.push(`<text x="${cx+col.w/2}" y="${midY+(qs?-3:4)}" text-anchor="middle" font-size="9" fill="#fff" font-weight="800" letter-spacing="0.3" font-family="sans-serif">${nm}</text>`);
+      if(qs) parts.push(`<text x="${cx+col.w/2}" y="${midY+12}" text-anchor="middle" font-size="7.5" fill="rgba(255,255,255,.85)" font-weight="700" font-family="sans-serif">${qs}</text>`);
+    }
+  });
+  if(emptyW>4){
+    const ex=origX+filledW;
+    parts.push(`<rect x="${ex}" y="${origY-loadH}" width="${emptyW}" height="${loadH}" fill="#e8edf3" stroke="#c5ccd8" stroke-width="0.5" stroke-dasharray="4,3" opacity="0.8"/>`);
+  }
+
+  // ── 4) Return row (amber, light theme) ────────────────────────────────────
+  const rbY=origY-loadH, rtY=rbY-RET_H;
+  parts.push(`<rect x="${origX}" y="${rtY}" width="${PW}" height="${RET_H}" fill="#fffbeb" stroke="#d97706" stroke-width="1" stroke-dasharray="4,2"/>`);
+  parts.push(`<polygon points="${origX},${rtY} ${origX+PW},${rtY} ${origX+PW+DX},${rtY-DY} ${origX+DX},${rtY-DY}" fill="#fef3c7" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3,2"/>`);
+  parts.push(`<polygon points="${origX+PW},${rtY} ${origX+PW+DX},${rtY-DY} ${origX+PW+DX},${rbY-DY} ${origX+PW},${rbY}" fill="#fef9c3" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3,2"/>`);
+  parts.push(`<text x="${origX+PW/2}" y="${rtY+RET_H/2+4}" text-anchor="middle" font-size="9" font-weight="900" fill="#92400e" font-family="sans-serif">↩ RETORNS (15%)</text>`);
+
+  // ── 5) Pallet base ────────────────────────────────────────────────────────
+  const py=origY, pw=PW, pdx=DX, pdy=DY;
+  parts.push(`<polygon points="${origX},${py} ${origX+pw},${py} ${origX+pw+pdx},${py-pdy} ${origX+pdx},${py-pdy}" fill="#b45309"/>`);
+  parts.push(`<rect x="${origX}" y="${py}" width="${pw}" height="${PALH}" fill="#92400e"/>`);
+  [0.18,0.5,0.82].forEach(t=>{parts.push(`<rect x="${origX+pw*t-4}" y="${py+3}" width="8" height="${PALH-6}" rx="1" fill="#7c2d12"/>`);});
+  parts.push(`<polygon points="${origX+pw},${py} ${origX+pw+pdx},${py-pdy} ${origX+pw+pdx},${py+PALH-pdy} ${origX+pw},${py+PALH}" fill="#7c2d12"/>`);
+  parts.push(`<text x="${origX+pw/2}" y="${py+PALH/2+4}" text-anchor="middle" font-size="8" font-weight="700" fill="rgba(255,255,255,.45)" font-family="sans-serif">EUROPALET</text>`);
+
+  // ── 6) Column labels ──────────────────────────────────────────────────────
+  cols.forEach(col=>{
+    const [cF]=C3D[col.prod.cat]||C3D.generic;
+    const cx=origX+col.x, ly=origY+PALH+4;
+    const isMine=col.prod.isMine;
+    parts.push(`<rect x="${cx+1}" y="${ly}" width="${col.w-2}" height="18" rx="3" fill="${isMine?'#1d4ed822':cF+'22'}" stroke="${isMine?'#1d4ed8':cF+'66'}" stroke-width="${isMine?1.2:0.8}"/>`);
+    if(isMine){
+      parts.push(`<text x="${cx+col.w/2}" y="${ly+12}" text-anchor="middle" font-size="7.5" fill="#1d4ed8" font-weight="900" font-family="sans-serif">← TU</text>`);
+    } else if(col.w>=28){
+      const lbl=col.prod.denom.split(' ').slice(0,2).join(' ').slice(0,col.w<50?7:10);
+      parts.push(`<text x="${cx+col.w/2}" y="${ly+12}" text-anchor="middle" font-size="7" fill="${cF}" font-weight="700" font-family="sans-serif">${lbl}${col.prod.qty>0?' '+col.prod.qty+'cj':''}</text>`);
+    } else {
+      parts.push(`<text x="${cx+col.w/2}" y="${ly+13}" text-anchor="middle" font-size="11" font-family="sans-serif">${CAT_ICO[col.prod.cat]||'📦'}</text>`);
+    }
+  });
+
+  // ── 7) % fill badge ───────────────────────────────────────────────────────
+  const pct=Math.round(totalFrac*100);
+  parts.push(`<rect x="${svgW-PAD-46}" y="${PAD}" width="46" height="18" rx="5" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>`);
+  parts.push(`<text x="${svgW-PAD-23}" y="${PAD+12}" text-anchor="middle" font-size="9" font-weight="800" fill="#374151" font-family="sans-serif">${pct}% ple</text>`);
+
+  // ── 8) Color legend ───────────────────────────────────────────────────────
+  {
+    const legY=origY+PALH+LABY+6;
+    parts.push(`<rect x="${origX}" y="${legY-3}" width="${PW}" height="20" rx="4" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="0.8"/>`);
+    let lx=origX+6;
+    [...new Set(cols.map(c=>c.prod.cat))].forEach(cat=>{
+      if(lx>origX+PW-24) return;
+      const [cF]=C3D[cat]||C3D.generic;
+      const lbl=(CAT_LBL[cat]||cat).slice(0,10);
+      parts.push(`<rect x="${lx}" y="${legY+1}" width="9" height="9" rx="2" fill="${cF}"/>`);
+      parts.push(`<text x="${lx+12}" y="${legY+9}" font-size="8" fill="#6b7280" font-family="sans-serif">${lbl}</text>`);
+      lx+=12+lbl.length*4.6+8;
+    });
+    if(lx<origX+PW-24){
+      parts.push(`<rect x="${lx}" y="${legY+1}" width="9" height="9" rx="2" fill="#fde68a" stroke="#d97706" stroke-width="0.8"/>`);
+      parts.push(`<text x="${lx+12}" y="${legY+9}" font-size="8" fill="#6b7280" font-family="sans-serif">Retorns</text>`);
+    }
+  }
+
+  return `<svg width="100%" viewBox="0 0 ${svgW} ${svgH}" style="display:block;max-width:340px;margin:0 auto;overflow:visible">${parts.join('')}</svg>`;
+}
+
+// Build product picking list HTML for a client's stop
+function buildProductList(products, color) {
+  if (!products || !products.length) return '';
+  return `<div style="padding:8px 14px 10px;background:#fff;border-bottom:1px solid var(--border)">
+    <div style="font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted);margin-bottom:6px">📋 Productes a recollir</div>
+    ${products.map(p => {
+      const icon = CAT_ICO[p.cat]||'📦';
+      const palStr = p.pallet_frac >= 0.1 ? `${p.pallet_frac.toFixed(2)}P` : `${Math.round(p.pallet_frac*100)}%P`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f3f4f6">
+        <span style="font-size:14px;flex-shrink:0">${icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.denom}</div>
+          <div style="font-size:9px;color:var(--muted)">${p.mat} · ${p.boxes_per_pallet} cj/palé</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:16px;font-weight:900;color:${color}">${p.qty|0}<span style="font-size:9px;font-weight:600"> cj</span></div>
+          <div style="font-size:9px;color:var(--muted)">${palStr}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
 // ── Warehouse data helpers ────────────────────────────────────────────────────
 function findWarehouseTrip(sec) {
   const dayWH = WH_DATA.find(d => d.date === selDay);
@@ -394,13 +593,16 @@ function buildClientPallets(whTrip) {
   whTrip.pallets.forEach(pallet => {
     // Build the full layer list for this pallet (all stops, sorted heavy→top visually = bottom first)
     const allLayers = pallet.stops.map((s, idx) => ({
-      layer:      idx + 1,           // 1 = bottom (heaviest)
-      client_id:  s.client_id,
-      name:       s.name,
-      main_cats:  s.main_cats || {},
-      mixed_cats: s.mixed_cats || {},
-      boxes:      s.boxes,
-      weight:     s.weight || 0,
+      layer:       idx + 1,
+      client_id:   s.client_id,
+      name:        s.name,
+      main_cats:   s.main_cats || {},
+      mixed_cats:  s.mixed_cats || {},
+      boxes:       s.boxes,
+      pallet_frac: s.pallet_frac || 0.2,
+      weight:      s.weight || 0,
+      fragility:   s.fragility || 0,
+      products:    s.products || [],   // real product lines from ZM040
     }));
 
     pallet.stops.forEach((stop, stopIdx) => {
@@ -504,36 +706,23 @@ function renderSection() {
       const mixBadge = pal.is_mixed
         ? `<span style="font-size:9px;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 5px;margin-left:4px;font-weight:700">MIXTE</span>` : '';
 
-      // ── Stacking diagram (layers shown top→bottom visually, bottom=heaviest) ──
-      const layers = pal.all_layers || [];
-      // Reverse so top layer shows at top of diagram
-      const layersTopFirst = [...layers].reverse();
-      const stackRowsHtml = layersTopFirst.map((lyr, li) => {
-        const isTop = li === 0;
-        const isBot = li === layersTopFirst.length - 1;
-        const isMine = lyr.client_id === stop.client_id;
-        const posTxt = isTop ? '⬜ DALT' : isBot ? '⬛ BAIX' : '▪ MIG';
-        const posColor = isTop ? '#065f46' : isBot ? '#7c2d12' : '#374151';
-        const cbs2 = catBoxes(lyr.main_cats, lyr.mixed_cats || {}, lyr.boxes).slice(0,3);
-        const catsHtml = cbs2.map(x =>
-          `<span class="cat-pill">${CAT_ICO[x.cat]||'📦'} ${CAT_LBL[x.cat]||x.cat} ~${x.boxes}cj</span>`
-        ).join(' ');
-        return `
-          <div class="stack-layer${isMine?' mine':''}">
-            <div class="stack-pos" style="color:${posColor}">${posTxt}</div>
-            <div class="stack-cats">${catsHtml || `<span class="cat-pill">${lyr.boxes|0}cj</span>`}</div>
-            ${isMine ? `<div style="font-size:9px;color:#1d4ed8;font-weight:700;flex-shrink:0">← tu</div>` : ''}
-          </div>`;
-      }).join('');
+      // ── Products to pick for this client ─────────────────────────────────────
+      const clientProducts = pal.all_layers?.find(l => l.client_id === stop.client_id)?.products || [];
+      const productList = buildProductList(clientProducts, color);
 
-      const stackDiag = layers.length > 0 ? `
-        <div class="stack-diag">
-          <div class="stack-diag-hdr">
-            <span>📦 Apilament del palé ${pal.pallet_num}</span>
-            <span>${pal.is_mixed ? 'MIXTE — ordre per pes' : 'PUR — mateixa categoria'}</span>
+      // ── 3D pallet diagram ─────────────────────────────────────────────────────
+      const layers = pal.all_layers || [];
+      const svg3d  = drawPallet3D(layers, stop.client_id);
+      const stackDiag = svg3d ? `
+        <div style="padding:12px 14px 10px;background:#f8fafc;border-bottom:1px solid var(--border)">
+          <div style="font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+            <span>📦 Com construir el palé ${pal.pallet_num}</span>
+            <span style="color:${color};font-size:8px">${pal.is_mixed?'MIXTE':'PUR'}</span>
           </div>
-          ${stackRowsHtml}
-          <div class="stack-arrow">↑ carrega primer les caixes de baix — posa-les al terra del palé</div>
+          ${svg3d}
+          <div style="text-align:center;font-size:9px;color:var(--muted);margin-top:8px;background:#eff6ff;border-radius:6px;padding:5px 8px">
+            Comença pel <b>BAIX ⬛</b> · La teva mercaderia: <b style="color:#1d4ed8">← TU</b>
+          </div>
         </div>` : '';
 
       // ── Truck position strip ──────────────────────────────────────────────────
@@ -576,6 +765,7 @@ function renderSection() {
               <div class="pal-frac">${pal.pallet_frac.toFixed(2)}P</div>
             </div>
           </div>
+          ${productList}
           ${stackDiag}
           ${truckPos}
           ${stkW}

@@ -159,9 +159,15 @@ select.route-sel{font-size:11px;padding:3px 8px;border-radius:8px;border:1px sol
     <div class="next-stop-card" id="next-stop-card"></div>
     <div class="stop-list-mini" id="stop-list-mini"></div>
   </div>
-  <div class="sticky-btn">
-    <button class="big-btn primary" onclick="goToStop()">
-      🧭 Iniciar parada
+  <div class="sticky-btn" style="display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;gap:8px">
+      <button class="big-btn primary" id="btn-nav-action" style="flex:1" onclick="goToStop()">
+        🧭 Iniciar parada
+      </button>
+      <button id="btn-gmaps-next" onclick="openGoogleMapsNext()" title="Navegar a la pròxima parada" style="padding:0 18px;border-radius:16px;border:2px solid var(--primary);background:#fff;color:var(--primary);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:800">🗺</button>
+    </div>
+    <button onclick="openGoogleMapsTrip()" style="width:100%;padding:9px;border-radius:12px;border:1.5px dashed var(--primary);background:transparent;color:var(--primary);font-size:12px;font-weight:700;cursor:pointer">
+      📍 Veure ruta completa a Google Maps
     </button>
   </div>
 </div>
@@ -423,7 +429,7 @@ function renderNextStopCard() {
         <div class="next-stop-num">${nDone+1}</div>
         <div>
           <div class="next-stop-name">${s.name}</div>
-          <div class="next-stop-addr">📍 ${s.city}</div>
+          <div class="next-stop-addr">📍 ${s.city} <button onclick="openGoogleMapsStop(${s.lat},${s.lon})" style="margin-left:6px;padding:2px 8px;border-radius:8px;border:1px solid var(--primary);background:#fff;color:var(--primary);font-size:10px;font-weight:700;cursor:pointer">🗺 Maps</button></div>
           ${tw}
         </div>
       </div>
@@ -489,6 +495,7 @@ function renderReloadScreen() {
       <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:#92400e">Recàrrega ${item.reload_num}</div>
       <div style="font-size:22px;font-weight:900;color:var(--text);margin-top:4px;line-height:1.2">Torna al magatzem</div>
       <div style="font-size:13px;color:var(--muted);margin-top:6px">Has completat la ruta ${item.trip_from}. Torna al Centre Damm Mollet per carregar la ruta ${nextTrip}.</div>
+      <button onclick="openGoogleMapsDepot()" style="margin-top:12px;width:100%;padding:11px;border-radius:12px;border:none;background:#d97706;color:#fff;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">🗺 Navegar al magatzem</button>
     </div>
     <div style="background:#fff;border-radius:16px;border:1px solid var(--border);padding:14px">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Ruta ${nextTrip} — ${nextTripStops.length} parades a carregar</div>
@@ -534,7 +541,7 @@ function renderStopScreen() {
         <div style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:${tripColor}22;color:${tripColor}">Ruta ${s.trip_num}</div>
       </div>
       <div class="stop-name-big">${s.name}</div>
-      <div class="stop-addr-line">📍 ${s.city}</div>
+      <div class="stop-addr-line">📍 ${s.city} <button onclick="openGoogleMapsStop(${s.lat},${s.lon})" style="margin-left:8px;padding:3px 10px;border-radius:8px;border:1.5px solid var(--primary);background:#fff;color:var(--primary);font-size:11px;font-weight:700;cursor:pointer">🗺 Navegar</button></div>
       ${tw}
     </div>
     <div class="access-badge ${acc.cls}">
@@ -614,6 +621,68 @@ function resetApp() {
 function fmtTime(s) {
   if (!s && s !== 0) return '—';
   return `${Math.floor(s/3600)}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}`;
+}
+
+// ── Google Maps deep links ────────────────────────────────────────────────────
+// Build a Google Maps directions URL for an ordered list of stops.
+// Uses ?api=1 format (up to 9 waypoints); falls back to /dir/A/B/C/ for longer routes.
+function buildGoogleMapsURL(stops, depot) {
+  if (!stops.length) return null;
+  const origin = `${depot.lat},${depot.lon}`;
+  const coords = stops.map(s => `${s.lat},${s.lon}`);
+
+  if (coords.length === 1) {
+    return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${encodeURIComponent(coords[0])}&travelmode=driving`;
+  }
+
+  const destination = coords[coords.length - 1];
+  const wps = coords.slice(0, -1);
+
+  if (wps.length <= 9) {
+    // Official URL API — supports up to 9 intermediate waypoints
+    return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${encodeURIComponent(destination)}&waypoints=${encodeURIComponent(wps.join('|'))}&travelmode=driving`;
+  }
+
+  // Slash format — no documented waypoint limit, opens in Maps app on mobile
+  return 'https://www.google.com/maps/dir/' + [origin, ...coords].map(encodeURIComponent).join('/') + '/';
+}
+
+// Navigate to one specific stop (from current GPS position)
+function openGoogleMapsStop(lat, lon) {
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
+  window.open(url, '_blank');
+}
+
+// Navigate to the depot/warehouse
+function openGoogleMapsDepot() {
+  const depot = selectedRoute.depot;
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${depot.lat},${depot.lon}&travelmode=driving`;
+  window.open(url, '_blank');
+}
+
+// Navigate to next item in sequence (single stop or depot for reload)
+function openGoogleMapsNext() {
+  const item = sequence[currentIdx];
+  if (!item) return;
+  if (item.type === 'reload') { openGoogleMapsDepot(); return; }
+  openGoogleMapsStop(item.lat, item.lon);
+}
+
+// Open full current trip route in Google Maps (all stops from depot)
+function openGoogleMapsTrip() {
+  const item = sequence[currentIdx];
+  if (!item) return;
+  const depot = selectedRoute.depot;
+  const tripNum = item.type === 'stop' ? item.trip_num : (item.trip_to || 1);
+
+  // All stops in this trip (from current position onward)
+  const remaining = sequence
+    .slice(currentIdx)
+    .filter(s => s.type === 'stop' && s.trip_num === tripNum);
+
+  if (!remaining.length) return;
+  const url = buildGoogleMapsURL(remaining, depot);
+  if (url) window.open(url, '_blank');
 }
 
 init();

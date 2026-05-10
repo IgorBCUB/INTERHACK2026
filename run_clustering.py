@@ -149,12 +149,22 @@ def load_enriched_orders_by_client(
         if cid in tw and dow in tw[cid]:
             tw_open, tw_close = tw[cid][dow]
 
-        priority = 3
-        upper_name = r["client_name"].upper()
-        if any(kw in upper_name for kw in ("HOSPITAL", "CLINIC", "RESIDENCIA")):
+        tw_width = tw_close - tw_open
+        if tw_width < 3600:
             priority = 1
+        elif tw_width < 14400:
+            priority = 2
+        else:
+            priority = 3
 
         frac = r["pallet_fraction"]
+        service_time = max(
+            cfg.UNLOAD_BASE_SECONDS,
+            cfg.UNLOAD_BASE_SECONDS + int(frac * cfg.UNLOAD_PER_PALLET_S),
+        )
+        park_range = cfg.PARKING_MAX_SECONDS - cfg.PARKING_MIN_SECONDS
+        parking_time = cfg.PARKING_MIN_SECONDS + (abs(hash(cid)) % (park_range + 1))
+
         orders.append(Order(
             id=cid,
             client_id=cid,
@@ -169,6 +179,8 @@ def load_enriched_orders_by_client(
             tw_open=tw_open,
             tw_close=tw_close,
             priority=priority,
+            service_time=service_time,
+            parking_time=parking_time,
             n_references=len(r["materials"]),
             categories=tuple(sorted(r["categories"])),
             fragility_score=r["fragility_score"] or 1,
@@ -226,7 +238,7 @@ def route_cluster(
     trip = Trip(vehicle_id=v.id, stops=stops, is_reload=is_reload)
     trip_cost(trip, cluster.orders, time_matrix, v)  # populates warehouse cached fields
 
-    # Compute total route time: travel + service
+    # Compute total route time: travel + parking + unload
     route_time = 0.0
     prev = depot_idx
     for stop in stops:
@@ -234,9 +246,11 @@ def route_cluster(
         if mi >= 0:
             route_time += time_matrix[prev][mi]
             prev = mi
-        route_time += stop.service_time
+        route_time += stop.parking_time + stop.service_time
     if prev != depot_idx:
         route_time += time_matrix[prev][depot_idx]
+    if is_reload:
+        route_time += cfg.DEPOT_RELOAD_PENALTY_SECONDS
     trip.total_time_seconds = route_time
 
     fuel = cluster_fuel_litres(cluster, fuel_matrix, matrix_idx, stops, depot_idx)
@@ -300,7 +314,98 @@ def solve_day_clustering(
     if solution.unassigned:
         print(f"  ⚠ {len(solution.unassigned)} pedidos no asignados")
 
+    # ── Post-process: enforce 8h daily cap using real routed times ─────────────
+    trips, extra_unassigned = _enforce_daily_cap(trips, vehicles, time_matrix, matrix_idx)
+    if extra_unassigned:
+        print(f"  ⚠ {len(extra_unassigned)} paradas sin reubicar por cap diario 8h")
+        solution.unassigned.extend(extra_unassigned)
+
     return solution, trips, total_fuel
+
+
+def _enforce_daily_cap(
+    trips: List[Trip],
+    vehicles: List[Vehicle],
+    time_matrix: List[List[float]],
+    matrix_idx: Dict[str, int],
+) -> Tuple[List[Trip], List[Order]]:
+    """
+    Hard enforce max_daily_seconds per vehicle using real routed times.
+
+    1. For each overloaded vehicle: drop the excess trips (shortest first,
+       preserving the longest/most important routes).
+    2. Dropped stops → try to append to the last trip of any vehicle that
+       still has daily capacity. Stops that can't be placed → unserved.
+    """
+    from collections import defaultdict
+
+    vehicle_map = {v.id: v for v in vehicles}
+    max_daily = {v.id: v.max_daily_seconds for v in vehicles}
+
+    by_vehicle: Dict[str, List[Trip]] = defaultdict(list)
+    for t in trips:
+        by_vehicle[t.vehicle_id].append(t)
+
+    kept: List[Trip] = []
+    overflow_stops: List[Order] = []
+
+    # ── Pass 1: keep trips that fit within each vehicle's daily cap ───────────
+    for vid, v_trips in by_vehicle.items():
+        cap = max_daily.get(vid, cfg.DEFAULT_MAX_DAILY_SECONDS)
+        # Keep the longest trips first (main deliveries), drop shortest excess
+        sorted_trips = sorted(v_trips, key=lambda t: -t.total_time_seconds)
+        accumulated = 0.0
+        for trip in sorted_trips:
+            if accumulated + trip.total_time_seconds <= cap:
+                kept.append(trip)
+                accumulated += trip.total_time_seconds
+            else:
+                overflow_stops.extend(trip.stops)
+
+    if not overflow_stops:
+        return kept, []
+
+    # ── Pass 2: redistribute overflow stops to vehicles with remaining time ───
+    remaining_time: Dict[str, float] = {v.id: max_daily.get(v.id, cfg.DEFAULT_MAX_DAILY_SECONDS) for v in vehicles}
+    for t in kept:
+        remaining_time[t.vehicle_id] = remaining_time.get(t.vehicle_id, 0.0) - t.total_time_seconds
+
+    still_unserved: List[Order] = []
+    depot_idx = 0
+
+    for stop in overflow_stops:
+        stop_idx = matrix_idx.get(stop.client_id, 0)
+        best_trip = None
+        best_remaining = 0.0
+
+        for t in kept:
+            if not t.stops:
+                continue
+            last_idx = matrix_idx.get(t.stops[-1].client_id, depot_idx)
+            # Conservative delta: travel to stop + service + parking + travel back to depot
+            travel_in  = time_matrix[last_idx][stop_idx] if stop_idx > 0 else 600
+            travel_out = time_matrix[stop_idx][depot_idx] if stop_idx > 0 else 600
+            travel_was = time_matrix[last_idx][depot_idx] if last_idx > 0 else 0
+            delta = travel_in + stop.parking_time + stop.service_time + travel_out - travel_was
+
+            rem = remaining_time.get(t.vehicle_id, 0.0)
+            # Only redistribute if it strictly fits within remaining daily time
+            if rem >= delta and rem > best_remaining:
+                best_remaining = rem
+                best_trip = t
+                best_delta = delta
+
+        if best_trip is not None:
+            best_trip.stops.append(stop)
+            best_trip.total_time_seconds += best_delta
+            remaining_time[best_trip.vehicle_id] -= best_delta
+        else:
+            still_unserved.append(stop)
+
+    if still_unserved:
+        print(f"  ⚠ {len(still_unserved)} paradas no redistribuibles (sin capacidad temporal)")
+
+    return kept, still_unserved
 
 
 # ── Serialiser ────────────────────────────────────────────────────────────────
@@ -322,15 +427,19 @@ def serialise_day(
     order_map  = {o.id: o for o in orders}
     v_map      = {v.id: v for v in vehicles}
 
-    # Group trips by vehicle
-    by_vehicle: Dict[str, List] = defaultdict(list)
-    # Map trip → cluster for warehouse info
-    cluster_by_vehicle: Dict[str, Cluster] = {}
+    # Build trip→cluster map using object identity (cluster._trip may have been filtered out)
+    trip_to_cluster: Dict[int, Cluster] = {}
     for cluster in solution.clusters:
-        trip = getattr(cluster, "_trip", None)
-        if trip is not None and cluster.vehicle:
+        t = getattr(cluster, "_trip", None)
+        if t is not None:
+            trip_to_cluster[id(t)] = cluster
+
+    # Group ONLY the kept trips by vehicle (respects _enforce_daily_cap filtering)
+    by_vehicle: Dict[str, List] = defaultdict(list)
+    for trip in trips:
+        cluster = trip_to_cluster.get(id(trip))
+        if cluster is not None and cluster.vehicle:
             by_vehicle[cluster.vehicle.id].append((trip, cluster))
-            cluster_by_vehicle[cluster.vehicle.id] = cluster
 
     routes_out = []
     for vid, trip_cluster_pairs in by_vehicle.items():
