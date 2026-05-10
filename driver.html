@@ -82,25 +82,38 @@ select.route-sel{font-size:11px;padding:3px 8px;border-radius:8px;border:1px sol
 .access-text{font-size:13px;font-weight:700}
 .access-sub{font-size:11px;color:var(--muted)}
 .products-title{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted)}
-.product-card{background:#fff;border-radius:16px;border:1px solid var(--border);padding:14px;display:flex;align-items:center;gap:12px}
-.product-icon{width:52px;height:52px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
-.product-qty{font-size:32px;font-weight:900;color:var(--primary)}
-.product-name{font-size:14px;font-weight:700;color:var(--text);line-height:1.2}
+.prod-list{background:#fff;border-radius:16px;border:1px solid var(--border);overflow:hidden}
+.prod-list-hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:#f9fafb}
+.prod-list-hdr-title{font-size:10px;font-weight:800;text-transform:uppercase;color:var(--muted)}
+.prod-list-prog{font-size:12px;font-weight:800;color:var(--primary)}
+.prod-prog-bar{height:3px;background:var(--border)}
+.prod-prog-fill{height:100%;background:var(--success);transition:width .3s}
+.prod-item{padding:11px 14px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .15s;-webkit-tap-highlight-color:transparent}
+.prod-item:last-child{border:none}
+.prod-item.done{background:#f0fdf4}
+.prod-chk{width:28px;height:28px;border-radius:8px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;transition:all .15s}
+.prod-item.done .prod-chk{background:var(--success);border-color:var(--success);color:#fff}
+.prod-ico{font-size:20px;flex-shrink:0;width:28px;text-align:center}
+.prod-info{flex:1;min-width:0}
+.prod-denom{font-size:12px;font-weight:700;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prod-mat{font-size:10px;color:var(--muted);margin-top:1px}
+.prod-qty-badge{font-size:18px;font-weight:900;color:var(--primary);flex-shrink:0}
+.prod-unit{font-size:9px;color:var(--muted);text-align:right}
 .frag-warn{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px;font-size:12px;color:#9a3412;font-weight:600}
 .return-card{background:#fff7ed;border:2px solid var(--warning);border-radius:16px;padding:14px;display:flex;align-items:flex-start;gap:12px}
 .return-icon{font-size:24px;flex-shrink:0}
 .return-title{font-size:10px;font-weight:700;text-transform:uppercase;color:#92400e}
 .return-text{font-size:14px;font-weight:800;color:var(--text);line-height:1.3;margin-top:2px}
 
-/* ── Truck visual ── */
-.truck-visual{background:#fff;border-radius:16px;border:1px solid var(--border);padding:14px}
-.truck-label{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
-.truck-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
-.truck-section-label{text-align:center;font-size:8px;font-weight:700;color:var(--muted);padding:2px 0}
-.truck-slot{height:28px;border-radius:5px;background:#f3f4f6;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;transition:all .2s}
-.truck-slot.filled{background:#fee2e2;border-color:#fca5a5;color:var(--primary)}
-.truck-slot.active-stop{background:var(--primary);border-color:#be123c;color:#fff}
-.truck-slot.done{background:#dcfce7;border-color:#86efac;color:var(--success)}
+/* ── Truck position strip ── */
+.truck-pos{background:#fff;border-radius:14px;border:1px solid var(--border);padding:12px 14px}
+.truck-pos-lbl{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.tps-bar{display:flex;gap:3px;align-items:center}
+.tps-depot{font-size:9px;color:var(--muted);font-weight:700;flex-shrink:0;padding:0 4px}
+.tps-seg{flex:1;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;transition:all .2s;position:relative}
+.tps-seg.active{transform:scaleY(1.18);box-shadow:0 0 0 2px #1e3a5f,0 2px 8px rgba(0,0,0,.25);z-index:1}
+.tps-seg.done-s{opacity:.35}
+.tps-seg.empty-s{background:#e5e7eb;color:#9ca3af}
 
 /* ── Big action button ── */
 .sticky-btn{position:sticky;bottom:0;background:rgba(248,249,250,.92);backdrop-filter:blur(8px);padding:12px 16px;border-top:1px solid var(--border)}
@@ -201,6 +214,8 @@ select.route-sel{font-size:11px;padding:3px 8px;border-radius:8px;border:1px sol
 
 <script>
 let ALL_ROUTES = [];
+let WH_DATA = [];
+let prodChecked = new Set();   // tracks checked product indices for current stop
 let currentRoutes = [];   // routes for selected day
 let selectedRoute = null; // the chosen vehicle route
 let sequence = [];        // stops + reload steps interleaved
@@ -248,7 +263,10 @@ const WEEKDAYS   = {
 };
 
 async function init() {
-  ALL_ROUTES = await fetch('results_driver.json').then(r => r.json());
+  [ALL_ROUTES, WH_DATA] = await Promise.all([
+    fetch('results_driver.json').then(r => r.json()),
+    fetch('results_warehouse.json').then(r => r.json()),
+  ]);
   buildDayTabs();
   selectDay(DAYS_ORDER[0]);
 }
@@ -533,6 +551,14 @@ function renderStopScreen() {
   const fragWarn = s.fragility >= 2
     ? `<div class="frag-warn">⚠ Producte fràgil — col·locar a dalt del palet, NO apilar pesats al damunt</div>` : '';
 
+  // ── Get client products from warehouse checklist ───────────────────────────
+  const whDay  = WH_DATA.find(d => d.date === selectedDay);
+  const whVP   = whDay?.vehicle_plans?.find(v => v.vehicle_id === selectedRoute?.vehicle_id);
+  const whTrip = whVP?.trips?.find(t => t.trip_num === s.trip_num);
+  const clientEntry = whTrip?.client_checklist?.find(c => c.client_id === s.client_id);
+  const stopProducts = clientEntry?.products || [];
+  prodChecked = new Set();
+
   document.getElementById('btn-deliver').textContent = '✅ Productes entregats';
   document.getElementById('stop-body').innerHTML = `
     <div class="stop-header-card">
@@ -548,43 +574,294 @@ function renderStopScreen() {
       <div class="access-icon">${acc.icon}</div>
       <div>
         <div class="access-text">${acc.text}</div>
-        <div class="access-sub">Secció ${section} del camió · Zona almacén ${s.warehouse_zone}</div>
+        <div class="access-sub">Zona almacén ${s.warehouse_zone}</div>
       </div>
     </div>
     <div class="products-title">A entregar</div>
-    <div class="product-card">
-      <div class="product-icon">${s.fragility >= 2 ? '🍷' : s.boxes > 30 ? '🍺' : '📦'}</div>
-      <div>
-        <div class="product-qty">${s.boxes|0}×</div>
-        <div class="product-name">${s.n_pallets > 0 ? s.n_pallets + 'P estimats' : 'Bultos solts'}</div>
-        <div style="font-size:11px;color:${fragColor};font-weight:700;margin-top:2px">${fragLabel}</div>
-      </div>
-    </div>
-    ${fragWarn}
-    ${renderTruckMini(section)}`;
+    ${buildProductChecklist(stopProducts, s.fragility)}
+    ${fragWarn}`;
 }
 
-function renderTruckMini(activeSection) {
-  const sections = ['C','B','A']; // front to rear (display order)
-  const labels = {C:'Davant',B:'Mig',A:'Darrere'};
-  let html = '<div class="truck-visual"><div class="truck-label">Posició al camió</div>';
-  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
-  sections.forEach(sec => {
-    const isActive = sec === activeSection;
-    html += `<div style="text-align:center">
-      <div style="font-size:9px;font-weight:700;color:var(--muted);margin-bottom:3px">${labels[sec]}</div>`;
-    for (let row = 0; row < 2; row++) {
-      for (let col = 0; col < 1; col++) {
-        html += `<div class="truck-slot ${isActive?'active-stop':Math.random()>0.5?'filled':''}" style="height:24px;border-radius:5px;margin:1px 0">${isActive?'⬡':''}</div>`;
+// ── Category labels + icons (needed by drawPallet3D) ─────────────────────────
+const CAT_LBL = {beer:'Cerveza',water:'Agua',wine:'Vi',softdrink:'Refresc',dairy:'Làctic',coffee:'Cafè',sweetener:'Edulcorant',packaging:'Embalatge',empty_pkg:'Envàs buit',generic:'Genèric',utensil:'Utensili',icecream:'Gelat',juice:'Suc'};
+const CAT_ICO = {beer:'🍺',water:'💧',wine:'🍷',softdrink:'🥤',dairy:'🥛',coffee:'☕',sweetener:'🍬',packaging:'📦',empty_pkg:'♻️',generic:'📦',utensil:'🍴',icecream:'🍦',juice:'🧃'};
+
+// ── 3D Pallet colours (front / top / right-side) ─────────────────────────────
+const C3D = {
+  beer:      ['#b45309','#f59e0b','#78350f'],
+  water:     ['#1d4ed8','#60a5fa','#1e3a8a'],
+  wine:      ['#6d28d9','#c084fc','#4c1d95'],
+  softdrink: ['#065f46','#34d399','#064e3b'],
+  dairy:     ['#0369a1','#7dd3fc','#0c4a6e'],
+  coffee:    ['#44403c','#a8a29e','#1c1917'],
+  sweetener: ['#7e22ce','#e879f9','#581c87'],
+  packaging: ['#3f6212','#a3e635','#365314'],
+  empty_pkg: ['#374151','#9ca3af','#111827'],
+  icecream:  ['#be185d','#f9a8d4','#831843'],
+  juice:     ['#b45309','#fbbf24','#92400e'],
+  generic:   ['#374151','#9ca3af','#1f2937'],
+  utensil:   ['#44403c','#a8a29e','#1c1917'],
+};
+
+function drawPallet3D(allLayers, currentClientId) {
+  if (!allLayers || !allLayers.length) return '';
+
+  // ── Gather products ───────────────────────────────────────────────────────
+  const products=[];
+  allLayers.forEach(lyr=>{
+    const isMine=lyr.client_id===currentClientId;
+    // main_cats values are absolute pallet fractions — use directly, no multiply
+    const allCats = {...(lyr.main_cats||{}), ...(lyr.mixed_cats||{})};
+    let raw;
+    if (lyr.products && lyr.products.length) {
+      raw = lyr.products;
+    } else if (Object.keys(allCats).length > 0) {
+      // Sort by value desc, guarantee at least the top category always renders
+      const entries = Object.entries(allCats).sort((a,b)=>b[1]-a[1]);
+      const topFrac = entries[0][1];
+      raw = entries.map(([cat,frac])=>({
+        cat, denom:CAT_LBL[cat]||cat,
+        // Normalise so top category always has at least 0.05 visual width
+        pallet_frac: Math.max(0.001, frac > 0 ? Math.max(frac, topFrac * 0.15) : 0),
+        qty: Math.round((lyr.boxes||1) * (frac / (topFrac||1)))
+      }));
+    } else {
+      // No category data at all — show as generic with box count
+      raw = [{cat:'generic',denom:'Caixes',pallet_frac:Math.max(0.05,lyr.pallet_frac||0.1),qty:lyr.boxes||1}];
+    }
+    raw.filter(p=>(p.pallet_frac||0)>0).forEach(p=>products.push({
+      cat:p.cat||'generic',denom:p.denom||(CAT_LBL[p.cat]||p.cat),
+      frac:Math.max(0.01,p.pallet_frac||0.02),qty:p.qty||0,
+      isMine,weight:p.weight||lyr.weight||2,
+    }));
+  });
+  products.sort((a,b)=>b.weight-a.weight);
+  // Absolute fallback: 1 generic column so cube always renders
+  if(!products.length) products.push({cat:'generic',denom:'Caixes',frac:0.1,qty:0,isMine:true,weight:2});
+  const totalFrac=Math.min(0.85,products.reduce((s,p)=>s+p.frac,0));
+
+  // ── Layout (light theme version of warehouse.html drawPallet3D_dark) ──────
+  const LAYER_H=18,MAX_LAYERS=7,PW=130,DX=44,DY=22,PAD=10,LABY=22,LEGH=30;
+  const loadH=MAX_LAYERS*LAYER_H;
+  const svgW=2*PAD+PW+DX+4, svgH=loadH+DY+PAD*2+LABY+LEGH+4;
+  const origX=PAD, origY=svgH-PAD-LABY-LEGH-4;
+
+  const filledW=Math.round(totalFrac/0.85*PW), emptyW=PW-filledW;
+  const cols=[];
+  {
+    const raws=products.map(p=>({p,wr:Math.max(8,p.frac/totalFrac*filledW)}));
+    const tw=raws.reduce((s,c)=>s+c.wr,0)||1;
+    let xc=0;
+    raws.forEach((c,i)=>{
+      const w=i===raws.length-1?filledW-xc:Math.max(8,Math.round(c.wr/tw*filledW));
+      cols.push({prod:c.p,x:xc,w}); xc+=w;
+    });
+  }
+
+  const parts=[];
+
+  // ── 1) Right side face ────────────────────────────────────────────────────
+  {
+    const rsX=origX+PW, rsTopY=origY-loadH;
+    const cS=emptyW>4?'#d1dae8':(C3D[cols[cols.length-1].prod.cat]||C3D.generic)[2];
+    parts.push(`<polygon points="${rsX},${rsTopY} ${rsX+DX},${rsTopY-DY} ${rsX+DX},${origY-DY} ${rsX},${origY}" fill="${cS}" stroke="rgba(0,0,0,.15)" stroke-width="0.5"/>`);
+    for(let l=1;l<MAX_LAYERS;l++){
+      const ly=origY-l*LAYER_H;
+      parts.push(`<line x1="${rsX}" y1="${ly}" x2="${rsX+DX}" y2="${ly-DY}" stroke="rgba(0,0,0,.18)" stroke-width="0.5"/>`);
+    }
+  }
+
+  // ── 2) Top faces ──────────────────────────────────────────────────────────
+  cols.forEach(col=>{
+    const [,cT]=C3D[col.prod.cat]||C3D.generic;
+    const cx=origX+col.x, ty=origY-loadH;
+    parts.push(`<polygon points="${cx},${ty} ${cx+col.w},${ty} ${cx+col.w+DX},${ty-DY} ${cx+DX},${ty-DY}" fill="${cT}" stroke="rgba(0,0,0,.12)" stroke-width="0.5"/>`);
+    if(col.w>=22)
+      parts.push(`<text x="${cx+col.w/2+DX*.35}" y="${ty-DY*.35+5}" text-anchor="middle" font-size="10" font-family="sans-serif">${CAT_ICO[col.prod.cat]||'📦'}</text>`);
+  });
+  if(emptyW>4){
+    const ex=origX+filledW, ty=origY-loadH;
+    parts.push(`<polygon points="${ex},${ty} ${ex+emptyW},${ty} ${ex+emptyW+DX},${ty-DY} ${ex+DX},${ty-DY}" fill="#e8edf3" stroke="#c5ccd8" stroke-width="0.4" stroke-dasharray="4,3" opacity="0.8"/>`);
+  }
+
+  // ── 3) Front faces ────────────────────────────────────────────────────────
+  cols.forEach(col=>{
+    const [cF]=C3D[col.prod.cat]||C3D.generic;
+    const cx=origX+col.x;
+    for(let l=0;l<MAX_LAYERS;l++){
+      const fy=origY-(l+1)*LAYER_H;
+      parts.push(`<rect x="${cx}" y="${fy}" width="${col.w}" height="${LAYER_H}" fill="${cF}" stroke="rgba(0,0,0,.25)" stroke-width="0.9"/>`);
+      // Lit top edge
+      parts.push(`<rect x="${cx+1}" y="${fy+1}" width="${col.w-2}" height="2" fill="rgba(255,255,255,.3)" rx="1"/>`);
+      parts.push(`<line x1="${cx+2}" y1="${fy+LAYER_H*.52}" x2="${cx+col.w-2}" y2="${fy+LAYER_H*.52}" stroke="rgba(0,0,0,.12)" stroke-width="0.5"/>`);
+      const nb=Math.max(1,Math.min(4,Math.round(col.w/26)));
+      for(let b=1;b<nb;b++){
+        const bx=cx+Math.round(b/nb*col.w);
+        parts.push(`<line x1="${bx}" y1="${fy+1}" x2="${bx}" y2="${fy+LAYER_H-1}" stroke="rgba(0,0,0,.12)" stroke-width="0.5"/>`);
       }
     }
-    html += '</div>';
+    // "← TU" highlight: white dashed border over the entire column
+    if(col.prod.isMine){
+      parts.push(`<rect x="${cx+1}" y="${origY-loadH}" width="${col.w-2}" height="${loadH-1}" fill="rgba(255,255,255,0.2)" stroke="white" stroke-width="2.5" stroke-dasharray="5,3" rx="2"/>`);
+    }
+    // Product name + qty centered on front face
+    if(col.w>=38){
+      const midY=origY-loadH*0.5;
+      const nm=col.prod.denom.split(' ').slice(0,2).join(' ').slice(0,Math.floor((col.w-8)/5.5));
+      const qs=col.prod.qty>0?col.prod.qty+'cj':'';
+      const th=qs?28:18;
+      parts.push(`<rect x="${cx+3}" y="${midY-th/2}" width="${col.w-6}" height="${th}" rx="4" fill="rgba(0,0,0,.38)"/>`);
+      parts.push(`<text x="${cx+col.w/2}" y="${midY+(qs?-3:4)}" text-anchor="middle" font-size="9" fill="#fff" font-weight="800" letter-spacing="0.3" font-family="sans-serif">${nm}</text>`);
+      if(qs) parts.push(`<text x="${cx+col.w/2}" y="${midY+12}" text-anchor="middle" font-size="7.5" fill="rgba(255,255,255,.85)" font-weight="700" font-family="sans-serif">${qs}</text>`);
+    }
   });
-  html += '</div></div>';
-  return html;
+  if(emptyW>4){
+    const ex=origX+filledW;
+    parts.push(`<rect x="${ex}" y="${origY-loadH}" width="${emptyW}" height="${loadH}" fill="#e8edf3" stroke="#c5ccd8" stroke-width="0.5" stroke-dasharray="4,3" opacity="0.8"/>`);
+  }
+
+  // ── 4) Client dividers ────────────────────────────────────────────────────
+
+  // ── 5) Column labels ─────────────────────────────────────────────────────
+  cols.forEach(col=>{
+    const [cF]=C3D[col.prod.cat]||C3D.generic;
+    const cx=origX+col.x, ly=origY+4;
+    const isMine=col.prod.isMine;
+    parts.push(`<rect x="${cx+1}" y="${ly}" width="${col.w-2}" height="18" rx="3" fill="${isMine?'#1d4ed822':cF+'22'}" stroke="${isMine?'#1d4ed8':cF+'66'}" stroke-width="${isMine?1.2:0.8}"/>`);
+    if(isMine){
+      parts.push(`<text x="${cx+col.w/2}" y="${ly+12}" text-anchor="middle" font-size="7.5" fill="#1d4ed8" font-weight="900" font-family="sans-serif">← TU</text>`);
+    } else if(col.w>=28){
+      const lbl=col.prod.denom.split(' ').slice(0,2).join(' ').slice(0,col.w<50?7:10);
+      parts.push(`<text x="${cx+col.w/2}" y="${ly+12}" text-anchor="middle" font-size="7" fill="${cF}" font-weight="700" font-family="sans-serif">${lbl}${col.prod.qty>0?' '+col.prod.qty+'cj':''}</text>`);
+    } else {
+      parts.push(`<text x="${cx+col.w/2}" y="${ly+13}" text-anchor="middle" font-size="11" font-family="sans-serif">${CAT_ICO[col.prod.cat]||'📦'}</text>`);
+    }
+  });
+
+  // ── 6) % fill badge ──────────────────────────────────────────────────────
+  const pct=Math.round(totalFrac*100);
+  parts.push(`<rect x="${svgW-PAD-46}" y="${PAD}" width="46" height="18" rx="5" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>`);
+  parts.push(`<text x="${svgW-PAD-23}" y="${PAD+12}" text-anchor="middle" font-size="9" font-weight="800" fill="#374151" font-family="sans-serif">${pct}% ple</text>`);
+
+  // ── 7) Color legend ───────────────────────────────────────────────────────
+  {
+    const legY=origY+LABY+6;
+    parts.push(`<rect x="${origX}" y="${legY-3}" width="${PW}" height="20" rx="4" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="0.8"/>`);
+    let lx=origX+6;
+    [...new Set(cols.map(c=>c.prod.cat))].forEach(cat=>{
+      if(lx>origX+PW-24) return;
+      const [cF]=C3D[cat]||C3D.generic;
+      const lbl=(CAT_LBL[cat]||cat).slice(0,10);
+      parts.push(`<rect x="${lx}" y="${legY+1}" width="9" height="9" rx="2" fill="${cF}"/>`);
+      parts.push(`<text x="${lx+12}" y="${legY+9}" font-size="8" fill="#6b7280" font-family="sans-serif">${lbl}</text>`);
+      lx+=12+lbl.length*4.6+8;
+    });
+  }
+
+  return `<svg width="100%" viewBox="0 0 ${svgW} ${svgH}" style="display:block;max-width:340px;margin:0 auto;overflow:visible">${parts.join('')}</svg>`;
+}
+
+// ── Product checklist ─────────────────────────────────────────────────────────
+const CAT_ICO_D = {beer:'🍺',water:'💧',wine:'🍷',softdrink:'🥤',dairy:'🥛',coffee:'☕',sweetener:'🍬',packaging:'📦',empty_pkg:'♻️',generic:'📦',utensil:'🍴',icecream:'🍦',juice:'🧃'};
+
+function buildProductChecklist(products, fragility) {
+  if (!products || !products.length) {
+    // Fallback: no product detail available
+    const icon = fragility >= 2 ? '🍷' : '🍺';
+    return `<div class="prod-list">
+      <div class="prod-list-hdr">
+        <span class="prod-list-hdr-title">Productes</span>
+      </div>
+      <div class="prod-item" style="cursor:default">
+        <div class="prod-ico">${icon}</div>
+        <div class="prod-info"><div class="prod-denom">Detall no disponible</div></div>
+      </div>
+    </div>`;
+  }
+
+  const total = products.length;
+  const rows = products.map((p, i) => {
+    const ico = CAT_ICO_D[p.cat] || '📦';
+    const fragTag = p.fragility >= 2
+      ? `<span style="font-size:9px;background:#fee2e2;color:#991b1b;border-radius:3px;padding:1px 4px;margin-left:4px">⚠ Fràgil</span>` : '';
+    return `
+      <div class="prod-item" id="prod-${i}" onclick="toggleProd(${i},${total})">
+        <div class="prod-chk" id="pchk-${i}"></div>
+        <div class="prod-ico">${ico}</div>
+        <div class="prod-info">
+          <div class="prod-denom">${p.denom}${fragTag}</div>
+          <div class="prod-mat">${p.mat}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="prod-qty-badge">${p.qty|0}</div>
+          <div class="prod-unit">caixes</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="prod-list">
+      <div class="prod-list-hdr">
+        <span class="prod-list-hdr-title">Productes a entregar</span>
+        <span class="prod-list-prog" id="prod-prog">0/${total}</span>
+      </div>
+      <div class="prod-prog-bar"><div class="prod-prog-fill" id="prod-pfill" style="width:0%"></div></div>
+      ${rows}
+    </div>`;
+}
+
+function toggleProd(i, total) {
+  if (prodChecked.has(i)) prodChecked.delete(i); else prodChecked.add(i);
+  const item = document.getElementById('prod-'+i);
+  const chk  = document.getElementById('pchk-'+i);
+  if (item) item.classList.toggle('done', prodChecked.has(i));
+  if (chk)  chk.textContent = prodChecked.has(i) ? '✓' : '';
+  const progTxt  = document.getElementById('prod-prog');
+  const progFill = document.getElementById('prod-pfill');
+  if (progTxt)  progTxt.textContent  = `${prodChecked.size}/${total}`;
+  if (progFill) progFill.style.width = `${prodChecked.size/total*100}%`;
+}
+
+function renderTruckMini(activeTripNum) {
+  // Total sections = total trips for this vehicle (LIFO: last trip = deepest = section 1)
+  const nTrips = selectedRoute ? selectedRoute.n_trips : 1;
+  const tripColors = ['#e8001c','#1d4ed8','#15803d','#d97706','#7c3aed'];
+
+  // Section depth = (nTrips - tripNum + 1): last trip → depth 1 (deepest/FONS)
+  const activeDepth = nTrips - activeTripNum + 1;
+
+  const segs = Array.from({length: nTrips}, (_, i) => {
+    const depth = i + 1;                       // 1 = FONS (deepest)
+    const tripNum = nTrips - depth + 1;        // which trip number loads at this depth
+    const isActive = depth === activeDepth;
+    const isDone   = depth > activeDepth;      // already unloaded (closer to door = delivered first)
+    const color = tripColors[(tripNum - 1) % tripColors.length];
+    const bg = isActive ? color : isDone ? color + '40' : '#e5e7eb';
+    const cls = isActive ? 'active' : isDone ? 'done-s' : 'empty-s';
+    return `<div class="tps-seg ${cls}" style="background:${bg}">${isActive ? '▼' : depth}</div>`;
+  }).join('');
+
+  // Position label for active section
+  const posLabels = {1:'Fons (darrere)',2:'Mig-Fons',3:'Mig',4:'Mig-Davant',5:'Davant (porta)'};
+  const posKey = Math.ceil(activeDepth / Math.max(nTrips,1) * 5);
+  const posLabel = posLabels[posKey] || 'Mig';
+
+  return `
+    <div class="truck-pos">
+      <div class="truck-pos-lbl">
+        <span>🚛 Posició al camió</span>
+        <span style="color:var(--primary)">${posLabel}</span>
+      </div>
+      <div class="tps-bar">
+        <span class="tps-depot">FONS</span>
+        ${segs}
+        <span class="tps-depot">PORTA</span>
+      </div>
+    </div>`;
 }
 
 function confirmDelivery() {
+  prodChecked = new Set();
   currentIdx++;
   if (currentIdx >= sequence.length) {
     renderDone();

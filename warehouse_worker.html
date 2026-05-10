@@ -402,18 +402,29 @@ function drawPallet3D(allLayers, currentClientId) {
   const products=[];
   allLayers.forEach(lyr=>{
     const isMine=lyr.client_id===currentClientId;
-    const raw=(lyr.products&&lyr.products.length)?lyr.products
-      :Object.entries({...(lyr.main_cats||{}), ...(lyr.mixed_cats||{})}).filter(([,v])=>v>0.03)
-        .map(([cat,frac])=>({cat,denom:CAT_LBL[cat]||cat,
-          pallet_frac:(lyr.pallet_frac||0.2)*frac,qty:Math.round((lyr.boxes||10)*frac)}));
-    raw.filter(p=>(p.pallet_frac||0)>0.01).forEach(p=>products.push({
+    const allCats = {...(lyr.main_cats||{}), ...(lyr.mixed_cats||{})};
+    let raw;
+    if (lyr.products && lyr.products.length) {
+      raw = lyr.products;
+    } else if (Object.keys(allCats).length > 0) {
+      const entries = Object.entries(allCats).sort((a,b)=>b[1]-a[1]);
+      const topFrac = entries[0][1];
+      raw = entries.map(([cat,frac])=>({
+        cat, denom:CAT_LBL[cat]||cat,
+        pallet_frac: Math.max(0.001, Math.max(frac, topFrac*0.15)),
+        qty: Math.round((lyr.boxes||1)*(frac/(topFrac||1)))
+      }));
+    } else {
+      raw = [{cat:'generic',denom:'Caixes',pallet_frac:Math.max(0.05,lyr.pallet_frac||0.1),qty:lyr.boxes||1}];
+    }
+    raw.filter(p=>(p.pallet_frac||0)>0).forEach(p=>products.push({
       cat:p.cat||'generic',denom:p.denom||(CAT_LBL[p.cat]||p.cat),
       frac:Math.max(0.01,p.pallet_frac||0.02),qty:p.qty||0,
       isMine,weight:p.weight||lyr.weight||2,
     }));
   });
   products.sort((a,b)=>b.weight-a.weight);
-  if(!products.length) return '';
+  if(!products.length) products.push({cat:'generic',denom:'Caixes',frac:0.1,qty:0,isMine:true,weight:2});
   const totalFrac=Math.min(0.85,products.reduce((s,p)=>s+p.frac,0));
 
   // ── Layout (light theme version of warehouse.html drawPallet3D_dark) ──────

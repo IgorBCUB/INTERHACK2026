@@ -184,6 +184,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 const ZONE_COLOR = {A:'#6366f1',B:'#06b6d4',C:'#10b981',D:'#f59e0b',E:'#f43f5e',F:'#a855f7',G:'#ec4899',H:'#14b8a6'};
 const CAT_ICO = {beer:'🍺',water:'💧',wine:'🍷',softdrink:'🥤',dairy:'🥛',coffee:'☕',sweetener:'🍬',packaging:'📦',empty_pkg:'♻️',generic:'📦',utensil:'🔧',icecream:'🍦',juice:'🍊'};
 const CAT_LBL = {beer:'Cervesa',water:'Aigua',wine:'Vi',softdrink:'Refresc',dairy:'Làctic',coffee:'Cafè',sweetener:'Edulcorant',packaging:'Embalatge',empty_pkg:'Envàs buit',generic:'Genèric',utensil:'Utensili',icecream:'Gelat',juice:'Suc'};
+const CAT_COLOR = {beer:'#b45309',water:'#1d4ed8',wine:'#6d28d9',softdrink:'#065f46',dairy:'#0369a1',coffee:'#44403c',sweetener:'#7e22ce',packaging:'#3f6212',empty_pkg:'#374151',icecream:'#be185d',utensil:'#57534e',generic:'#475569',juice:'#b45309'};
 const VTYPE_ICON = {truck_8:'🚛',truck_6:'🚚',van_3:'🚐'};
 const VTYPE_LBL  = {truck_8:'Camió 8P',truck_6:'Camió 6P',van_3:'Furgoneta 3P'};
 
@@ -319,6 +320,143 @@ function renderS1(dayIdx) {
   });
 }
 
+// ── Top-down truck SVG view ───────────────────────────────────────────────────
+function drawTruckTopView(vtype, pallets) {
+  // pallets = [{color, label, zone, used_frac, is_mixed}] in LOADING order
+  // index 0 = pallet 1 = FONS (deepest, last delivery)
+  const LAYOUTS = {
+    truck_8: {cols:2, rows:4, cW:130, cH:320, mirW:14, mirH:20},
+    truck_6: {cols:2, rows:3, cW:130, cH:250, mirW:14, mirH:20},
+    van_3:   {cols:1, rows:3, cW:80,  cH:250, mirW:10, mirH:16},
+  };
+  const L = LAYOUTS[vtype] || LAYOUTS.truck_6;
+  const PAD=14, GAP=5, CAB=50, WHEEL_W=16, WHEEL_H=28;
+  const palW = (L.cW - PAD*2 - GAP*(L.cols-1)) / L.cols;
+  const palH = (L.cH - PAD*2 - GAP*(L.rows-1)) / L.rows;
+  const totalW = L.cW + WHEEL_W*2 + 4;
+  const totalH = L.cH + CAB + 20;
+  const cX = WHEEL_W + 2;  // cargo area x offset
+  const cY = CAB;          // cargo area y offset
+  const parts = [];
+
+  // ── Body: cargo rectangle ──────────────────────────────────────────────────
+  parts.push(`<rect x="${cX}" y="${cY}" width="${L.cW}" height="${L.cH}" rx="6" fill="#1e293b" stroke="#334155" stroke-width="2"/>`);
+
+  // ── Cab (trapezoid pointing up = front of truck) ───────────────────────────
+  const cx1=cX+8, cx2=cX+L.cW-8;
+  parts.push(`<path d="M${cx1},${cY} L${cX+4},${cY-CAB+14} Q${cX+4},${cY-CAB} ${cX+18},${cY-CAB} L${cX+L.cW-18},${cY-CAB} Q${cX+L.cW-4},${cY-CAB} ${cX+L.cW-4},${cY-CAB+14} L${cx2},${cY} Z" fill="#0f172a" stroke="#334155" stroke-width="2"/>`);
+  // Windshield
+  parts.push(`<path d="M${cX+22},${cY-4} L${cX+14},${cY-CAB+22} Q${cX+14},${cY-CAB+10} ${cX+26},${cY-CAB+8} L${cX+L.cW-26},${cY-CAB+8} Q${cX+L.cW-14},${cY-CAB+10} ${cX+L.cW-14},${cY-CAB+22} L${cX+L.cW-22},${cY-4} Z" fill="#1e3a8a" opacity="0.6"/>`);
+  // Headlights
+  parts.push(`<rect x="${cX+8}" y="${cY-CAB+6}" width="14" height="8" rx="3" fill="#fbbf24" opacity="0.9"/>`);
+  parts.push(`<rect x="${cX+L.cW-22}" y="${cY-CAB+6}" width="14" height="8" rx="3" fill="#fbbf24" opacity="0.9"/>`);
+  // Side mirrors
+  parts.push(`<rect x="${cX-L.mirW+2}" y="${cY-CAB+14}" width="${L.mirW}" height="${L.mirH}" rx="3" fill="#334155" stroke="#475569" stroke-width="1"/>`);
+  parts.push(`<rect x="${cX+L.cW-2}" y="${cY-CAB+14}" width="${L.mirW}" height="${L.mirH}" rx="3" fill="#334155" stroke="#475569" stroke-width="1"/>`);
+
+  // ── Wheels ─────────────────────────────────────────────────────────────────
+  const wheelPositions = [
+    [cX-WHEEL_W-2, cY+10],       // front-left
+    [cX+L.cW+2, cY+10],          // front-right
+    [cX-WHEEL_W-2, cY+L.cH-10-WHEEL_H],  // rear-left
+    [cX+L.cW+2, cY+L.cH-10-WHEEL_H],     // rear-right
+  ];
+  if (vtype === 'truck_8') {
+    wheelPositions.push(
+      [cX-WHEEL_W-2, cY+L.cH/2-WHEEL_H/2],
+      [cX+L.cW+2,    cY+L.cH/2-WHEEL_H/2]
+    );
+  }
+  wheelPositions.forEach(([wx,wy]) => {
+    parts.push(`<rect x="${wx}" y="${wy}" width="${WHEEL_W}" height="${WHEEL_H}" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>`);
+    parts.push(`<rect x="${wx+2}" y="${wy+2}" width="${WHEEL_W-4}" height="${WHEEL_H-4}" rx="3" fill="#334155"/>`);
+  });
+
+  // ── Rear bumper line ───────────────────────────────────────────────────────
+  parts.push(`<rect x="${cX}" y="${cY+L.cH-6}" width="${L.cW}" height="6" rx="2" fill="#0f172a" opacity="0.7"/>`);
+
+  // ── Loading door indicator ─────────────────────────────────────────────────
+  const doorW = L.cW * 0.6, doorX = cX + (L.cW-doorW)/2;
+  parts.push(`<rect x="${doorX}" y="${cY+L.cH-3}" width="${doorW}" height="5" rx="2" fill="#e8001c" opacity="0.85"/>`);
+
+  // ── Pallet grid ───────────────────────────────────────────────────────────
+  // Row 0 = FONS (top of cargo) = loading order 1
+  // Row N-1 = PORTA (bottom = near door) = loading order last
+  let palIdx = 0;
+  for (let row = 0; row < L.rows; row++) {
+    for (let col = 0; col < L.cols; col++) {
+      const px = cX + PAD + col*(palW+GAP);
+      const py = cY + PAD + row*(palH+GAP);
+      const pal = pallets[palIdx] || null;
+      const fillPct = pal ? Math.min(1, pal.used_frac / 0.85) : 0;
+
+      // Pallet base (clip to rounded rect)
+      parts.push(`<rect x="${px}" y="${py}" width="${palW}" height="${palH}" rx="5" fill="#1e293b" stroke="rgba(255,255,255,.12)" stroke-width="1"/>`);
+
+      if (pal) {
+        // ── Colored fill: horizontal stripes per category (proportional) ──────
+        const cats = Object.entries(pal.categories || {}).sort((a,b)=>b[1]-a[1]);
+        const totalCatFrac = cats.reduce((s,[,v])=>s+v, 0) || 1;
+        const filledH = Math.round(palH * fillPct);
+        let yOff = py + palH - filledH;  // fill from bottom up
+
+        // Clip path for rounded corners
+        const clipId = `clip-${palIdx}`;
+        parts.push(`<clipPath id="${clipId}"><rect x="${px}" y="${py}" width="${palW}" height="${palH}" rx="5"/></clipPath>`);
+
+        cats.forEach(([cat, frac]) => {
+          const stripeH = Math.round((frac / totalCatFrac) * filledH);
+          const catClr = CAT_COLOR[cat] || '#475569';
+          parts.push(`<rect x="${px}" y="${yOff}" width="${palW}" height="${stripeH}" fill="${catClr}" clip-path="url(#${clipId})"/>`);
+          yOff += stripeH;
+        });
+
+        // Empty space (top of pallet) — dimmed overlay
+        if (filledH < palH - 2)
+          parts.push(`<rect x="${px+1}" y="${py+1}" width="${palW-2}" height="${palH-filledH-2}" rx="4" fill="rgba(0,0,0,.45)" clip-path="url(#${clipId})"/>`);
+
+        // Wood pallet slats
+        for (let s=1; s<4; s++) {
+          const sy = py + palH*s/4;
+          parts.push(`<line x1="${px+4}" y1="${sy}" x2="${px+palW-4}" y2="${sy}" stroke="rgba(0,0,0,.18)" stroke-width="0.8"/>`);
+        }
+        parts.push(`<line x1="${px+palW/2}" y1="${py+4}" x2="${px+palW/2}" y2="${py+palH-4}" stroke="rgba(0,0,0,.18)" stroke-width="0.8"/>`);
+
+        // Category icons for each stripe (if wide enough)
+        if (palW > 45 && cats.length > 0) {
+          let iy = py + palH - filledH;
+          cats.forEach(([cat, frac]) => {
+            const stripeH = Math.round((frac / totalCatFrac) * filledH);
+            if (stripeH > 14)
+              parts.push(`<text x="${px+palW/2}" y="${iy + stripeH/2 + 5}" text-anchor="middle" font-size="12" font-family="sans-serif">${CAT_ICO[cat]||'📦'}</text>`);
+            iy += stripeH;
+          });
+        }
+
+        // Pallet number (top-left)
+        parts.push(`<text x="${px+5}" y="${py+11}" font-size="8" font-weight="800" fill="rgba(255,255,255,.7)" font-family="sans-serif">${palIdx+1}</text>`);
+
+        // Fill % (bottom-right)
+        const pct = Math.round(fillPct*100);
+        if (palW > 45)
+          parts.push(`<text x="${px+palW-4}" y="${py+palH-4}" text-anchor="end" font-size="8" fill="rgba(255,255,255,.7)" font-weight="700" font-family="sans-serif">${pct}%</text>`);
+
+      } else {
+        // Empty slot
+        parts.push(`<rect x="${px+2}" y="${py+2}" width="${palW-4}" height="${palH-4}" rx="3" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.06)" stroke-width="1" stroke-dasharray="4,3"/>`);
+        parts.push(`<text x="${px+palW/2}" y="${py+palH/2+4}" text-anchor="middle" font-size="11" fill="rgba(255,255,255,.2)" font-family="sans-serif">—</text>`);
+      }
+      palIdx++;
+    }
+  }
+
+  // ── Direction labels ──────────────────────────────────────────────────────
+  parts.push(`<text x="${cX+L.cW/2}" y="${cY+12}" text-anchor="middle" font-size="8" fill="#64748b" font-weight="700" font-family="sans-serif">FONS — primer en carregar</text>`);
+  parts.push(`<text x="${cX+L.cW/2}" y="${totalH-2}" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="700" font-family="sans-serif">PORTA — últim en carregar</text>`);
+
+  return `<svg width="100%" viewBox="0 0 ${totalW} ${totalH}" style="display:block;max-width:320px;margin:0 auto;overflow:visible">${parts.join('')}</svg>`;
+}
+
 // ── Realistic pallet count (hardcoded for demo) ───────────────────────────────
 const PAL_RANGE = { truck_8:[6,8], truck_6:[4,6], van_3:[2,3] };
 function realisticPalCount(vehicleType, seed) {
@@ -443,43 +581,54 @@ function renderS3(trip, whTrip, route, tripIdx) {
   const body = document.getElementById('s3-body');
   body.innerHTML = '';
 
-  // ── LIFO client order diagram ─────────────────────────────────────────────
-  const stopsRev = [...trip.stops].reverse(); // reversed = loading order
-  const lifoHtml = stopsRev.map((s, i) => {
-    const isFirst = i===0, isLast = i===stopsRev.length-1;
-    const bg = isFirst ? '#7c2d12' : isLast ? '#14532d' : '#1e3a5f';
-    const label = isFirst ? 'FONS' : isLast ? 'PORTA' : `${i+1}`;
-    return `<div style="flex:1;min-width:0;background:${bg};border-radius:6px;padding:6px 4px;text-align:center;cursor:default">
-      <div style="font-size:8px;font-weight:800;color:${isFirst?'#fca5a5':isLast?'#86efac':'#93c5fd'}">${label}</div>
-      <div style="font-size:8px;color:rgba(255,255,255,.7);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.client_name||''}">${(s.client_name||'Client').split(' ')[0]}</div>
-    </div>`;
-  }).join('');
+  // ── Top-down truck view ───────────────────────────────────────────────────
+  const capPals = {truck_8:8, truck_6:6, van_3:3}[vtype] || 6;
+
+  // Build pallet data in LOADING order (FONS=0 = pallet_num 1)
+  const whPals = (whTrip?.pallets || []).slice().sort((a,b) => a.pallet_num - b.pallet_num);
+  const truckPallets = Array.from({length: capPals}, (_, i) => {
+    const wp = whPals[i];
+    if (wp) return {
+      color:     wp.color || ZONE_COLOR[wp.zone] || c,
+      zone:      wp.zone || z,
+      used_frac: wp.used_frac || 0.5,
+      is_mixed:  wp.is_mixed || false,
+    };
+    // Empty slot
+    return null;
+  });
+
+  const truckSvg = drawTruckTopView(vtype, truckPallets);
 
   const lifoDiv = document.createElement('div');
-  lifoDiv.style.cssText='background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:4px';
+  lifoDiv.style.cssText='background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:4px';
   lifoDiv.innerHTML=`
-    <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;justify-content:space-between">
-      <span>🚛 Ordre de càrrega LIFO — el darrer client es carrega primer (va al fons)</span>
-      <span style="color:${c}">Zona ${z}</span>
+    <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+      <span>🚛 Vista cenital del camió — ordre de càrrega LIFO</span>
+      <span style="color:${c}">${{truck_8:'Camió 8P',truck_6:'Camió 6P',van_3:'Furgoneta 3P'}[vtype]||vtype}</span>
     </div>
-    <div style="display:flex;gap:3px">${lifoHtml}</div>
-    <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:8px;color:var(--muted)">
-      <span>← carrega primer (porta)</span><span>carrega últim (fons) →</span>
+    ${truckSvg}
+    <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:8px;color:var(--muted)">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#fbbf24;display:inline-block"></span> Palé mixte</span>
+      <span>Número = ordre de càrrega · % = ocupació</span>
     </div>`;
   body.appendChild(lifoDiv);
 
   // ── Pallet cards ─────────────────────────────────────────────────────────
   const realPals = whTrip?.pallets || [];
-  const stopsPerPal = Math.max(1, Math.ceil(trip.stops.length / nPalShow));
+  // Use actual warehouse pallets as ground truth; fall back to estimate only if no WH data
+  const nPalsActual = realPals.length > 0 ? realPals.length : nPalShow;
+  const stopsPerPal = Math.max(1, Math.ceil(trip.stops.length / nPalsActual));
 
-  for (let pi=0; pi < nPalShow; pi++) {
-    const realPal = realPals[pi] || null;
-    const palStops = realPal ? realPal.stops :
-      trip.stops.slice(pi*stopsPerPal, (pi+1)*stopsPerPal);
-    const palFrac  = realPal ? realPal.used_frac : Math.min(0.85, palStops.reduce((s,x)=>s+(x.n_pallets||0.3),0));
-    const isReturnPal = isFull && pi === nPalShow-1;
-    const posLabel = pi===0?'Fons (darrere)':pi===nPalShow-1?'Davant (porta)':`Mig-${pi<nPalShow/2?'Fons':'Davant'}`;
-    body.appendChild(buildPalletCard(realPal, palStops, pi+1, nPalShow, z, c, posLabel, isReturnPal));
+  const clientChecklist = whTrip?.client_checklist || [];
+  for (let pi=0; pi < nPalsActual; pi++) {
+    const realPal  = realPals[pi] || null;
+    const posLabel = pi===0?'Fons (darrere)':pi===nPalsActual-1?'Davant (porta)':`Mig-${pi<nPalsActual/2?'Fons':'Davant'}`;
+    body.appendChild(buildPalletCard(realPal, pi+1, nPalsActual, z, c, posLabel));
+  }
+  // Client checklist card after all pallets
+  if (clientChecklist.length > 0) {
+    body.appendChild(buildClientChecklistCard(clientChecklist, c, z));
   }
 
   // Return reminder (if full)
@@ -497,89 +646,90 @@ function renderS3(trip, whTrip, route, tripIdx) {
 // ── Category weight for stacking order ───────────────────────────────────────
 const CAT_WEIGHT = {beer:5,water:5,softdrink:4,wine:3,dairy:3,coffee:2,generic:2,sweetener:1,packaging:1,empty_pkg:1,utensil:1,icecream:2,juice:4};
 
-function buildPalletCard(pal, palStops, palNum, totalPals, zone, zoneColor, posLabel, isReturnPal) {
+function buildPalletCard(pal, palNum, totalPals, zone, zoneColor, posLabel) {
   const card = document.createElement('div');
   card.className = 'pal-card';
-  const stops = palStops || (pal?.stops) || [];
-  const totalBoxes = stops.reduce((s,x)=>s+(x.boxes||0),0);
-  const usedFrac   = pal?.used_frac || Math.min(0.85, stops.reduce((s,x)=>s+(x.pallet_frac||x.n_pallets||0.2),0));
-  const isMixed    = pal?.is_mixed ?? (stops.length > 1);
-  const hasFragile = pal?.fragile ?? stops.some(s=>s.fragility>=2);
+
+  if (!pal) {
+    // Empty slot (reserved)
+    card.innerHTML = `
+      <div class="pal-header" style="opacity:.4">
+        <div class="pal-num-badge" style="background:#1e2d45">${palNum}</div>
+        <div style="flex:1">
+          <div class="pal-title">Palé ${palNum} — ${posLabel}</div>
+          <div class="pal-sub">Slot buit / reservat</div>
+        </div>
+      </div>`;
+    return card;
+  }
+
+  const products   = pal.products || [];
+  const usedFrac   = pal.used_frac || 0;
+  const isMixed    = pal.is_mixed || false;
+  const hasFragile = pal.fragile || false;
+  const palColor   = pal.color || zoneColor;
+  const catIcon    = pal.cat_icon || '📦';
 
   const mixBadge  = isMixed ? `<span class="ptag" style="background:#3b1d08;color:#fb923c">MIXTE</span>` : `<span class="ptag" style="background:#052e16;color:#86efac">PUR</span>`;
   const fragBadge = hasFragile ? `<span class="ptag" style="background:#450a0a;color:#fca5a5">⚠ Fràgil</span>` : '';
-  const retBadge  = isReturnPal ? `<span class="ptag" style="background:#1c1208;color:#d97706">↩ Retorns</span>` : '';
-  const posBadge  = `<span class="ptag" style="background:${zoneColor}22;color:${zoneColor}">${posLabel}</span>`;
+  const posBadge  = `<span class="ptag" style="background:${palColor}33;color:${palColor}">${posLabel}</span>`;
 
-  // Position strip (pallet number in truck)
+  // Position strip
   const posSegs = Array.from({length:totalPals},(_,si) => {
-    const active = si+1 === palNum;
-    const past   = si+1 < palNum;
-    const bg = active ? zoneColor : past ? zoneColor+'44' : '#1e2d45';
+    const active = si+1 === palNum, past = si+1 < palNum;
+    const bg = active ? palColor : past ? palColor+'44' : '#1e2d45';
     return `<div style="flex:1;height:22px;border-radius:4px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:${active?'#fff':'#475569'}">${active?'▼':si+1}</div>`;
   }).join('');
 
-  // 3D SVG
-  const svg = drawPallet3D_dark(stops, zoneColor, isReturnPal);
+  // 3D SVG — pass products as "stops" with pallet-level aggregation
+  const fakeStops = products.length
+    ? [{ products, main_cats:{}, mixed_cats:{}, boxes: pal.total_boxes, pallet_frac: usedFrac, fragility: hasFragile?2:0 }]
+    : [];
+  const svg = drawPallet3D_dark(fakeStops, palColor);
 
-  // Products column: stops sorted bottom→top (heaviest first)
-  const sortedStops = [...stops].sort((a,b)=>(b.fragility||0)-(a.fragility||0) || 0);
-  const stopsHtml = sortedStops.map((stop,si) => {
-    const isBot=si===0, isTop=si===sortedStops.length-1;
-    const posC = isBot?'#7c2d12':isTop?'#14532d':'#1e3a5f';
-    const posL = isBot?'⬛ BAIX':isTop?'⬜ DALT':'▪ MIG';
-    const prods = (stop.products||[]).slice(0,5);
-    const prodsHtml = prods.length ? prods.map(p => `
+  // Product rows (sorted heavy→light = bottom→top)
+  const prodsSorted = [...products].sort((a,b) => (b.weight||0)-(a.weight||0));
+  const prodsHtml = prodsSorted.map((p,pi) => {
+    const isBot = pi===0, isTop = pi===prodsSorted.length-1;
+    const posC  = isBot?'#7c2d12': isTop?'#14532d':'#1e3a5f';
+    const posL  = prodsSorted.length>1 ? (isBot?'⬛ BAIX':isTop?'⬜ DALT':'▪ MIG') : '';
+    const fragTag = p.fragility>=2 ? `<span style="font-size:8px;background:#450a0a;color:#fca5a5;border-radius:3px;padding:1px 4px;margin-left:4px">⚠</span>` : '';
+    return `
       <div class="prod-row">
         <div class="prod-icon">${CAT_ICO[p.cat]||'📦'}</div>
         <div class="prod-info">
-          <div class="prod-name">${p.denom||CAT_LBL[p.cat]||p.cat}</div>
-          <div class="prod-mat">${p.mat||''} · ${p.boxes_per_pallet||'—'} cj/palé</div>
+          <div class="prod-name">${p.denom||p.mat}${fragTag}</div>
+          <div class="prod-mat">${p.mat} · ${p.boxes_per_pallet||'—'} cj/palé${posL?` · <span style="color:${posC};font-weight:800">${posL}</span>`:''}</div>
         </div>
         <div class="prod-qty">
           <div class="prod-boxes">${Math.round(p.qty||0)}<span style="font-size:9px;font-weight:600"> cj</span></div>
           <div class="prod-bpp">${(p.pallet_frac||0).toFixed(2)}P</div>
         </div>
-      </div>`).join('') :
-      Object.entries(stop.main_cats||{}).slice(0,3).map(([cat,frac])=>`
-        <div class="prod-row">
-          <div class="prod-icon">${CAT_ICO[cat]||'📦'}</div>
-          <div class="prod-info"><div class="prod-name">${CAT_LBL[cat]||cat}</div><div class="prod-mat">${(frac*100).toFixed(0)}% del palé</div></div>
-          <div class="prod-qty"><div class="prod-boxes">${Math.round((stop.boxes||0)*frac)}<span style="font-size:9px"> cj</span></div></div>
-        </div>`).join('');
-    return `
-      <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <span style="font-size:9px;font-weight:800;padding:2px 8px;border-radius:4px;background:${posC}55;color:${posC==='#7c2d12'?'#fca5a5':posC==='#14532d'?'#86efac':'#93c5fd'}">${posL}</span>
-          <span style="font-size:12px;font-weight:700;color:var(--text)">${stop.name||stop.client_name||stop.client_id||'Client'}</span>
-          <span style="font-size:10px;color:var(--muted);margin-left:auto">${(stop.boxes||0)|0} cj · ${(stop.pallet_frac||stop.n_pallets||0).toFixed(2)}P</span>
-        </div>
-        ${prodsHtml}
       </div>`;
-  }).join('');
+  }).join('') || '<div style="color:var(--muted);font-size:12px;padding:8px 0">Sense productes</div>';
 
   card.innerHTML = `
     <div class="pal-header">
-      <div class="pal-num-badge" style="background:${zoneColor}">${palNum}</div>
+      <div class="pal-num-badge" style="background:${palColor}">${catIcon} ${palNum}</div>
       <div style="flex:1">
-        <div class="pal-title">Palé ${palNum} — ${posLabel}</div>
-        <div class="pal-sub">${totalBoxes.toFixed(0)} caixes · ${usedFrac.toFixed(2)} palets · ${stops.length} client${stops.length!==1?'s':''}</div>
+        <div class="pal-title">Palé ${palNum} — ${pal.primary_cat ? (CAT_LBL[pal.primary_cat]||pal.primary_cat) : posLabel}</div>
+        <div class="pal-sub">${pal.total_boxes.toFixed(0)} caixes · ${usedFrac.toFixed(2)}P · ${products.length} ref.</div>
       </div>
-      <div class="pal-tags">${posBadge}${mixBadge}${fragBadge}${retBadge}</div>
+      <div class="pal-tags">${posBadge}${mixBadge}${fragBadge}</div>
     </div>
     <div class="pal-body">
       <div class="pal-3d-col">
         <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:6px;text-align:center">Com carregar el palé</div>
         ${svg}
         <div style="margin-top:8px">
-          <div style="font-size:8px;color:var(--muted);text-align:center;margin-bottom:4px">Posició al camió (ruta)</div>
+          <div style="font-size:8px;color:var(--muted);text-align:center;margin-bottom:4px">Posició al camió</div>
           <div style="display:flex;gap:2px">${posSegs}</div>
           <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:7px;color:var(--muted)"><span>FONS</span><span>PORTA</span></div>
         </div>
       </div>
       <div class="pal-products-col">
-        <div class="prod-section-title">Productes (ordre: ⬛ BAIX = primer, ⬜ DALT = darrer)</div>
-        ${stopsHtml||'<div style="color:var(--muted);font-size:12px;padding:8px 0">Sense dades de productes</div>'}
+        <div class="prod-section-title">Productes del palé (⬛ BAIX primer · ⬜ DALT darrer)</div>
+        ${prodsHtml}
       </div>
     </div>
     <div class="pal-footer">
@@ -587,8 +737,52 @@ function buildPalletCard(pal, palStops, palNum, totalPals, zone, zoneColor, posL
       <div class="pf-item">Palé <b>${palNum} de ${totalPals}</b></div>
       <div class="pf-item">Ocupació: <b>${(usedFrac*100).toFixed(0)}%</b></div>
       <div class="pf-item">Reserva retorns: <b>15%</b></div>
-      ${hasFragile&&isMixed?'<div class="pf-item" style="color:#fca5a5">⚠ Fràgil + Pesant — verifica ordre</div>':''}
     </div>`;
+  return card;
+}
+
+function buildClientChecklistCard(checklist, zoneColor, zone) {
+  const card = document.createElement('div');
+  card.className = 'pal-card';
+  const rows = checklist.map((c,ci) => {
+    const fmtTW = (c.tw_close && c.tw_close < 86399)
+      ? ` · 🕐 ${Math.floor(c.tw_open/3600)}:${String(Math.floor((c.tw_open%3600)/60)).padStart(2,'0')}–${Math.floor(c.tw_close/3600)}:${String(Math.floor((c.tw_close%3600)/60)).padStart(2,'0')}`
+      : '';
+    const fragTag = c.fragility>=2 ? `<span style="font-size:8px;background:#450a0a;color:#fca5a5;border-radius:3px;padding:1px 4px;margin-left:4px">⚠ Fràgil</span>` : '';
+    const prods = (c.products||[]).map(p => `
+      <div class="prod-row" style="padding:5px 0 5px 8px">
+        <div class="prod-icon" style="font-size:13px">${CAT_ICO[p.cat]||'📦'}</div>
+        <div class="prod-info">
+          <div class="prod-name" style="font-size:11px">${p.denom||p.mat}</div>
+          <div class="prod-mat">${p.mat}</div>
+        </div>
+        <div class="prod-qty">
+          <div class="prod-boxes" style="font-size:14px">${Math.round(p.qty||0)}<span style="font-size:9px"> cj</span></div>
+        </div>
+      </div>`).join('');
+    return `
+      <details style="border-bottom:1px solid var(--border)" ${ci===0?'open':''}>
+        <summary style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;list-style:none">
+          <div style="width:28px;height:28px;border-radius:8px;background:${zoneColor};color:#fff;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ci+1}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.name}${fragTag}</div>
+            <div style="font-size:10px;color:var(--muted)">${c.city}${fmtTW} · ${c.total_boxes}cj · ${(c.pallet_frac||0).toFixed(2)}P</div>
+          </div>
+          <span style="font-size:10px;color:var(--muted);flex-shrink:0">${(c.products||[]).length} ref.</span>
+        </summary>
+        <div style="padding:0 14px 10px">${prods}</div>
+      </details>`;
+  }).join('');
+
+  card.innerHTML = `
+    <div class="pal-header">
+      <div class="pal-num-badge" style="background:${zoneColor}">📋</div>
+      <div style="flex:1">
+        <div class="pal-title">Checklist per local — ${checklist.length} clients</div>
+        <div class="pal-sub">Productes individuals a entregar a cada destinació</div>
+      </div>
+    </div>
+    <div style="padding:0">${rows}</div>`;
   return card;
 }
 
@@ -603,19 +797,29 @@ function drawPallet3D_dark(stops, accentColor) {
   const products=[];
   stops.forEach((stop,si)=>{
     const name=(stop.name||stop.client_name||`C${si+1}`).split(' ').slice(0,2).join(' ');
-    const raw=(stop.products&&stop.products.length)?stop.products
-      :Object.entries(stop.main_cats||{}).filter(([,v])=>v>0.03)
-        .map(([cat,frac])=>({cat,denom:CAT_LBL[cat]||cat,
-          pallet_frac:(stop.pallet_frac||stop.n_pallets||0.2)*frac,
-          qty:Math.round((stop.boxes||10)*frac)}));
-    raw.filter(p=>(p.pallet_frac||0)>0.01).forEach(p=>products.push({
+    const allCats = stop.main_cats||{};
+    let raw;
+    if (stop.products && stop.products.length) {
+      raw = stop.products;
+    } else if (Object.keys(allCats).length > 0) {
+      const entries = Object.entries(allCats).sort((a,b)=>b[1]-a[1]);
+      const topFrac = entries[0][1];
+      raw = entries.map(([cat,frac])=>({
+        cat, denom:CAT_LBL[cat]||cat,
+        pallet_frac: Math.max(0.001, Math.max(frac, topFrac*0.15)),
+        qty: Math.round((stop.boxes||1)*(frac/(topFrac||1)))
+      }));
+    } else {
+      raw = [{cat:'generic',denom:'Caixes',pallet_frac:Math.max(0.05,stop.pallet_frac||stop.n_pallets||0.1),qty:stop.boxes||1}];
+    }
+    raw.filter(p=>(p.pallet_frac||0)>0).forEach(p=>products.push({
       cat:p.cat||'generic',denom:p.denom||(CAT_LBL[p.cat]||p.cat),
       frac:Math.max(0.01,p.pallet_frac||0.02),qty:p.qty||0,
       si,name,weight:CAT_WEIGHT[p.cat]||2,
     }));
   });
   products.sort((a,b)=>b.weight-a.weight);
-  if(!products.length) return '';
+  if(!products.length) products.push({cat:'generic',denom:'Caixes',frac:0.1,qty:0,si:0,name:'Client',weight:2});
   const totalFrac=Math.min(0.85,products.reduce((s,p)=>s+p.frac,0));
 
   // ── Layout constants ──────────────────────────────────────────────────────

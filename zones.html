@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Damm — Plànol Magatzem</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f172a;--card:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#64748b;
+  --primary:#6366f1;--success:#22c55e;--warning:#f59e0b;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+.hdr{background:var(--card);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.logo{width:34px;height:34px;background:var(--primary);border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff;flex-shrink:0}
+.hdr-title{font-size:14px;font-weight:800}.hdr-sub{font-size:10px;color:var(--muted);margin-top:1px}
+.day-tabs{margin-left:auto;display:flex;gap:5px}
+.day-tab{padding:4px 12px;border-radius:16px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;transition:all .15s}
+.day-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+.kpi-bar{display:flex;gap:20px;padding:10px 20px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0}
+.kpi .v{font-size:18px;font-weight:900}.kpi .l{font-size:8px;font-weight:700;text-transform:uppercase;color:var(--muted)}
+
+.body{display:flex;flex:1;overflow:hidden}
+
+/* ── Warehouse floor plan ── */
+.floor-wrap{flex:1;overflow:auto;padding:20px;display:flex;align-items:flex-start;justify-content:center}
+.floor-svg-wrap{position:relative;width:100%;max-width:900px}
+
+/* ── Side panel ── */
+.panel{width:320px;background:var(--card);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.panel-hdr{padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-title{font-size:13px;font-weight:800;display:flex;align-items:center;gap:8px}
+.panel-sub{font-size:10px;color:var(--muted);margin-top:2px}
+.search-wrap{padding:8px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.search-inp{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:6px 10px;color:var(--text);font-size:11px;outline:none}
+.search-inp:focus{border-color:var(--primary)}
+.search-inp::placeholder{color:var(--muted)}
+.panel-body{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:5px}
+.panel-empty{color:var(--muted);font-size:11px;padding:20px;text-align:center;line-height:1.6}
+
+.client-card{background:var(--bg);border-radius:9px;border:1px solid var(--border);padding:9px 11px;display:flex;align-items:center;gap:8px;transition:border-color .15s}
+.client-card.active-c{border-left:3px solid var(--success)}
+.cc-zone{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11px;color:#fff;flex-shrink:0}
+.cc-info{flex:1;min-width:0}
+.cc-name{font-size:11px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cc-meta{font-size:9px;color:var(--muted);margin-top:1px}
+.cc-cats{display:flex;gap:2px;margin-top:3px;flex-wrap:wrap}
+.cc-cat{font-size:8px;padding:1px 4px;border-radius:3px;font-weight:700}
+.cc-boxes{font-size:13px;font-weight:900;text-align:right}
+.cc-pal{font-size:8px;color:var(--muted);text-align:right}
+
+.section-label{font-size:8px;font-weight:800;text-transform:uppercase;padding:6px 2px 3px;color:var(--muted)}
+
+/* Tooltip */
+.tooltip{position:fixed;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 12px;font-size:11px;color:#e2e8f0;pointer-events:none;z-index:999;display:none;min-width:160px;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+.tooltip.show{display:block}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="logo">D</div>
+  <div>
+    <div class="hdr-title">Plànol Magatzem DDI Mollet — Vista des de dalt</div>
+    <div class="hdr-sub" id="hdr-sub">Carregant...</div>
+  </div>
+  <div class="day-tabs" id="day-tabs"></div>
+</div>
+
+<div class="kpi-bar" id="kpi-bar"></div>
+
+<div class="body">
+  <div class="floor-wrap">
+    <div class="floor-svg-wrap">
+      <svg id="floor-svg" width="100%" viewBox="0 0 880 520" style="display:block;cursor:default"></svg>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-hdr">
+      <div class="panel-title"><span id="panel-color-dot" style="width:10px;height:10px;border-radius:3px;flex-shrink:0;display:inline-block"></span><span id="panel-title">Selecciona una zona</span></div>
+      <div class="panel-sub" id="panel-sub">Clica una zona del plànol</div>
+    </div>
+    <div class="search-wrap">
+      <input class="search-inp" id="search-inp" placeholder="Cercar client..." oninput="filterClients()" disabled>
+    </div>
+    <div class="panel-body" id="panel-body">
+      <div class="panel-empty">👆 Clica una zona del plànol per veure els clients</div>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const DAYS = ['16/03/2026','17/03/2026','18/03/2026','19/03/2026','20/03/2026'];
+const DW   = {'16/03/2026':'Dilluns','17/03/2026':'Dimarts','18/03/2026':'Dimecres','19/03/2026':'Dijous','20/03/2026':'Divendres'};
+
+// Real product categories only (exclude generic/empty_pkg/utensil from primary display)
+const SKIP_CATS = new Set(['generic','empty_pkg','utensil']);
+const CAT_COLOR = {beer:'#b45309',water:'#1d4ed8',wine:'#6d28d9',softdrink:'#065f46',dairy:'#0369a1',coffee:'#78350f',sweetener:'#7e22ce',packaging:'#3f6212',empty_pkg:'#374151',icecream:'#be185d',utensil:'#57534e',generic:'#475569',juice:'#92400e'};
+const CAT_ICO   = {beer:'🍺',water:'💧',wine:'🍷',softdrink:'🥤',dairy:'🥛',coffee:'☕',sweetener:'🍬',packaging:'📦',empty_pkg:'♻️',icecream:'🍦',utensil:'🍴',generic:'📦',juice:'🧃'};
+const CAT_LBL   = {beer:'Cervesa',water:'Aigua',wine:'Vi',softdrink:'Refresc',dairy:'Làctic',coffee:'Cafè',sweetener:'Edulcorant',packaging:'Embalatge',empty_pkg:'Envàs buit',icecream:'Gelat',utensil:'Utensili',generic:'Genèric',juice:'Suc'};
+const ZONE_COLOR= {A:'#6366f1',B:'#06b6d4',C:'#10b981',D:'#f59e0b',E:'#f43f5e',F:'#a855f7',G:'#ec4899',H:'#14b8a6'};
+
+// Warehouse layout: [zone, x, y, w, h]
+// SVG viewBox 880×520. Entrance on the LEFT.
+const ZONE_LAYOUT = [
+  // Row top: A B C D E
+  ['A', 200, 60,  110, 130],
+  ['B', 320, 60,  110, 130],
+  ['C', 440, 60,  110, 130],
+  ['D', 560, 60,  110, 130],
+  ['E', 680, 60,  160, 130],
+  // Row bottom: F G H
+  ['F', 200, 240, 140, 130],
+  ['G', 350, 240, 140, 130],
+  ['H', 500, 240, 200, 130],
+  // Mixed zone near entrance
+  ['MIXTA', 28, 60, 130, 310],
+];
+
+let WH_DATA = [], CL_DATA = {};
+let selDay = DAYS[0], selZone = null;
+
+async function init() {
+  [WH_DATA, CL_DATA] = await Promise.all([
+    fetch('results_warehouse.json').then(r=>r.json()),
+    fetch('data/client_zones.json').then(r=>r.json()),
+  ]);
+  buildDayTabs();
+  selectDay(DAYS[0]);
+}
+
+function buildDayTabs() {
+  const el = document.getElementById('day-tabs');
+  DAYS.forEach(d => {
+    const b = document.createElement('button');
+    b.className='day-tab'; b.textContent=DW[d]; b.dataset.d=d;
+    b.onclick=()=>selectDay(d);
+    el.appendChild(b);
+  });
+}
+
+function selectDay(d) {
+  selDay = d;
+  document.querySelectorAll('.day-tab').forEach(b=>b.classList.toggle('active',b.dataset.d===d));
+  const dayData = WH_DATA.find(x=>x.date===d);
+  renderKPIs(dayData);
+  drawFloor(dayData);
+  if (selZone) selectZone(selZone, dayData);
+}
+
+function renderKPIs(dayData) {
+  if (!dayData) return;
+  const zones = dayData.zones||{};
+  const activeZ = Object.values(zones).filter(z=>z.n_clients_today>0).length;
+  document.getElementById('kpi-bar').innerHTML=`
+    <div class="kpi"><div class="v">${dayData.total_orders||0}</div><div class="l">Pedidos</div></div>
+    <div class="kpi"><div class="v" style="color:#22c55e">${activeZ}/8</div><div class="l">Zones actives</div></div>
+    <div class="kpi"><div class="v">${dayData.total_pallets||0}</div><div class="l">Palés</div></div>
+    <div class="kpi"><div class="v" style="color:var(--warning)">${(dayData.mixed_zone?.n_items||0)}</div><div class="l">Items zona mixta</div></div>
+    <div class="kpi"><div class="v">${dayData.weekday||''}</div><div class="l">Dia</div></div>`;
+  document.getElementById('hdr-sub').textContent=`${dayData.date} · ${dayData.weekday}`;
+}
+
+function realCats(fracs) {
+  return Object.entries(fracs||{})
+    .filter(([c,v])=>!SKIP_CATS.has(c)&&v>0.02)
+    .sort((a,b)=>b[1]-a[1]);
+}
+
+function drawFloor(dayData) {
+  const svg = document.getElementById('floor-svg');
+  const zones = dayData?.zones || {};
+  const mixed = dayData?.mixed_zone || {};
+  const profiles = CL_DATA.zone_profiles || {};
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const parts = [];
+
+  // ── Warehouse outer walls ──────────────────────────────────────────────────
+  parts.push(`<rect x="0" y="0" width="880" height="520" fill="#0d1927" rx="12" stroke="#1e3a5f" stroke-width="2"/>`);
+
+  // ── Floor grid (subtle) ───────────────────────────────────────────────────
+  for (let gx=20; gx<880; gx+=40)
+    parts.push(`<line x1="${gx}" y1="0" x2="${gx}" y2="520" stroke="#ffffff06" stroke-width="0.5"/>`);
+  for (let gy=20; gy<520; gy+=40)
+    parts.push(`<line x1="0" y1="${gy}" x2="880" y2="${gy}" stroke="#ffffff06" stroke-width="0.5"/>`);
+
+  // ── Entrance (left wall) ───────────────────────────────────────────────────
+  parts.push(`<rect x="0" y="160" width="6" height="80" fill="none" stroke="#22c55e" stroke-width="2"/>`);
+  parts.push(`<text x="16" y="205" text-anchor="middle" font-size="9" font-weight="800" fill="#22c55e" font-family="sans-serif" transform="rotate(-90,16,205)">ENTRADA</text>`);
+  // Arrow
+  parts.push(`<polyline points="6,200 22,194 22,206 6,200" fill="#22c55e" opacity="0.8"/>`);
+
+  // ── Aisle labels ──────────────────────────────────────────────────────────
+  parts.push(`<text x="170" y="40" text-anchor="middle" font-size="8" fill="#334155" font-weight="700" font-family="sans-serif" letter-spacing="2">PASSADÍS 1</text>`);
+  parts.push(`<text x="540" y="220" text-anchor="middle" font-size="8" fill="#334155" font-weight="700" font-family="sans-serif" letter-spacing="2">PASSADÍS 2</text>`);
+
+  // ── Draw each zone ────────────────────────────────────────────────────────
+  ZONE_LAYOUT.forEach(([zid, zx, zy, zw, zh]) => {
+    const isMixed = zid === 'MIXTA';
+    const zd = isMixed ? null : (zones[zid] || {});
+    const profile = isMixed ? null : (profiles[zid] || {});
+    const color = isMixed ? '#d97706' : (ZONE_COLOR[zid] || '#475569');
+    const isActive = isMixed ? (mixed.n_items > 0) : ((zd?.n_clients_today||0) > 0);
+    const isSel = selZone === zid;
+
+    // Background fill (low opacity)
+    const fillOpacity = isActive ? 0.15 : 0.05;
+    parts.push(`<rect x="${zx}" y="${zy}" width="${zw}" height="${zh}" rx="8" fill="${color}" fill-opacity="${fillOpacity}" stroke="${color}" stroke-opacity="${isSel?1:isActive?0.6:0.25}" stroke-width="${isSel?2.5:1.5}" class="zone-rect" data-zone="${zid}" style="cursor:pointer"/>`);
+
+    // Product category color stripes (top bar)
+    const cats = isMixed
+      ? Object.entries(mixed.by_category||{}).filter(([c])=>!SKIP_CATS.has(c)).slice(0,5).map(([c,v])=>[c,v.pallets||0])
+      : realCats(zd?.stable_fracs || profile?.volume_fracs || {}).slice(0,5);
+
+    if (cats.length > 0) {
+      const totalFrac = cats.reduce((s,[,v])=>s+v,0)||1;
+      let xOff = zx+4;
+      const barH = 7;
+      cats.forEach(([cat,frac]) => {
+        const segW = Math.round((frac/totalFrac)*(zw-8));
+        if (segW > 0)
+          parts.push(`<rect x="${xOff}" y="${zy+4}" width="${segW}" height="${barH}" rx="2" fill="${CAT_COLOR[cat]||'#475569'}" opacity="${isActive?0.9:0.4}"/>`);
+        xOff += segW;
+      });
+    }
+
+    // Zone letter (big)
+    parts.push(`<text x="${zx+zw/2}" y="${zy+zh/2+2}" text-anchor="middle" dominant-baseline="middle" font-size="${isMixed?14:32}" font-weight="900" fill="${color}" fill-opacity="${isActive?0.95:0.3}" font-family="sans-serif" pointer-events="none">${isMixed?'ZONA\nMIXTA':zid}</text>`);
+    if (isMixed) {
+      parts.push(`<text x="${zx+zw/2}" y="${zy+zh/2+18}" text-anchor="middle" font-size="14" font-weight="900" fill="${color}" fill-opacity="${isActive?0.95:0.3}" font-family="sans-serif" pointer-events="none">MIXTA</text>`);
+    }
+
+    // Active client count badge
+    const count = isMixed ? (mixed.n_items||0) : (zd?.n_clients_today||0);
+    if (isActive && count > 0) {
+      parts.push(`<rect x="${zx+zw-28}" y="${zy+8}" width="22" height="16" rx="8" fill="${color}" opacity="0.9"/>`);
+      parts.push(`<text x="${zx+zw-17}" y="${zy+20}" text-anchor="middle" font-size="9" font-weight="800" fill="#fff" font-family="sans-serif" pointer-events="none">${count}</text>`);
+    }
+
+    // Category icons row (bottom of zone)
+    const icoCats = cats.slice(0,4);
+    let ixOff = zx + 8;
+    icoCats.forEach(([cat]) => {
+      if (!SKIP_CATS.has(cat)) {
+        parts.push(`<text x="${ixOff}" y="${zy+zh-8}" font-size="12" fill="rgba(255,255,255,${isActive?0.7:0.2})" font-family="sans-serif" pointer-events="none">${CAT_ICO[cat]||'📦'}</text>`);
+        ixOff += 18;
+      }
+    });
+
+    // Inactive overlay
+    if (!isActive) {
+      parts.push(`<rect x="${zx}" y="${zy}" width="${zw}" height="${zh}" rx="8" fill="#0f172a" fill-opacity="0.5" pointer-events="none"/>`);
+    }
+
+    // Clickable overlay (transparent, captures mouse)
+    parts.push(`<rect x="${zx}" y="${zy}" width="${zw}" height="${zh}" rx="8" fill="transparent" stroke="none" class="zone-hit" data-zone="${zid}" style="cursor:pointer"/>`);
+  });
+
+  // ── Pallet staging area (bottom strip) ────────────────────────────────────
+  parts.push(`<rect x="200" y="400" width="640" height="50" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>`);
+  parts.push(`<text x="520" y="430" text-anchor="middle" font-size="10" font-weight="700" fill="#334155" letter-spacing="3" font-family="sans-serif">ZONA DE MUNTATGE DE PALÉS</text>`);
+  // Dock doors (bottom)
+  [260,340,420,500,580,660,740].forEach(dx => {
+    parts.push(`<rect x="${dx}" y="446" width="40" height="6" rx="3" fill="#e8001c" opacity="0.7"/>`);
+    parts.push(`<text x="${dx+20}" y="460" text-anchor="middle" font-size="7" fill="#64748b" font-family="sans-serif">🚛</text>`);
+  });
+  parts.push(`<text x="520" y="480" text-anchor="middle" font-size="8" fill="#334155" font-weight="700" font-family="sans-serif" letter-spacing="2">MOLL DE CÀRREGA ↓</text>`);
+
+  svg.innerHTML = parts.join('');
+
+  // Add event listeners
+  svg.querySelectorAll('.zone-hit, .zone-rect').forEach(el => {
+    const zid = el.dataset.zone;
+    if (!zid) return;
+    el.addEventListener('click', () => {
+      selZone = zid;
+      selectZone(zid, dayData);
+      drawFloor(dayData); // re-draw to update selection
+    });
+    el.addEventListener('mousemove', (e) => showTooltip(e, zid, dayData));
+    el.addEventListener('mouseleave', () => hideTooltip());
+  });
+}
+
+function showTooltip(e, zid, dayData) {
+  const tt = document.getElementById('tooltip');
+  const isMixed = zid === 'MIXTA';
+  const zones = dayData?.zones || {};
+  const mixed = dayData?.mixed_zone || {};
+  const profiles = CL_DATA.zone_profiles || {};
+
+  let html = '';
+  if (isMixed) {
+    html = `<b style="color:#d97706">Zona Mixta</b><br>${mixed.n_items||0} items · ${(mixed.total_pallets||0).toFixed(1)} palés<br><span style="color:#64748b;font-size:9px">Productes fora del cluster principal<br>Recollida ràpida a l'entrada</span>`;
+  } else {
+    const zd = zones[zid] || {};
+    const color = ZONE_COLOR[zid] || '#475569';
+    const profile = profiles[zid] || {};
+    const cats = realCats(zd.stable_fracs || profile.volume_fracs || {}).slice(0,3)
+      .map(([c]) => `${CAT_ICO[c]||'📦'} ${CAT_LBL[c]||c}`).join('  ');
+    html = `<b style="color:${color}">Zona ${zid}</b><br>${zd.n_clients_today||0} actius · ${(zd.n_pallets||0).toFixed(0)} palés avui<br><span style="font-size:10px">${cats}</span>`;
+  }
+  tt.innerHTML = html;
+  tt.style.left = (e.clientX + 14) + 'px';
+  tt.style.top  = (e.clientY - 10) + 'px';
+  tt.classList.add('show');
+}
+function hideTooltip() { document.getElementById('tooltip').classList.remove('show'); }
+
+function selectZone(zid, dayData) {
+  const isMixed = zid === 'MIXTA';
+  const color = isMixed ? '#d97706' : (ZONE_COLOR[zid] || '#475569');
+  const zones = dayData?.zones || {};
+  const mixed = dayData?.mixed_zone || {};
+  const allClients = CL_DATA.clients || {};
+  const searchEl = document.getElementById('search-inp');
+
+  document.getElementById('panel-color-dot').style.background = color;
+  document.getElementById('panel-title').textContent = isMixed ? 'Zona Mixta' : `Zona ${zid}`;
+  document.getElementById('search-inp').disabled = isMixed;
+
+  if (isMixed) {
+    searchEl.disabled = true;
+    const items = (mixed.items||[]);
+    const byClient = {};
+    items.forEach(it => {
+      if (!byClient[it.client]) byClient[it.client] = {name:it.client, city:it.city, cats:new Set(), boxes:0};
+      byClient[it.client].cats.add(it.category);
+      byClient[it.client].boxes += it.boxes||0;
+    });
+    const cats = Object.keys(mixed.by_category||{}).filter(c=>!SKIP_CATS.has(c));
+    document.getElementById('panel-sub').textContent = `${items.length} items · ${(mixed.total_pallets||0).toFixed(1)} palés · ${Object.keys(byClient).length} clients`;
+    const html = `
+      <div class="section-label" style="color:#d97706">Productes fora de cluster · recollida a l'entrada</div>
+      ${cats.map(cat => {
+        const cd = mixed.by_category[cat];
+        return `<div class="client-card active-c" style="border-left-color:#d97706">
+          <div class="cc-zone" style="background:#d97706">${CAT_ICO[cat]||'📦'}</div>
+          <div class="cc-info">
+            <div class="cc-name">${CAT_LBL[cat]||cat}</div>
+            <div class="cc-meta">${cd.n_clients||0} clients · ${(cd.pallets||0).toFixed(2)}P</div>
+          </div>
+          <div><div class="cc-boxes">${(cd.boxes||0)|0}<span style="font-size:8px;color:var(--muted)"> cj</span></div></div>
+        </div>`;
+      }).join('')}`;
+    document.getElementById('panel-body').innerHTML = html;
+    return;
+  }
+
+  // Regular zone
+  const zd = zones[zid] || {};
+  document.getElementById('panel-sub').textContent = `${zd.n_clients_today||0} actius avui · ${zd.n_clients_total||0} clients totals`;
+  searchEl.disabled = false;
+  searchEl.value = '';
+  searchEl.dataset.zone = zid;
+
+  // Collect today's active clients
+  const todayClients = new Set();
+  const clientOrders = {};
+  for (const vp of dayData?.vehicle_plans||[]) {
+    for (const trip of vp.trips||[]) {
+      if (trip.warehouse_zone !== zid) continue;
+      for (const c of trip.client_checklist||[]) {
+        todayClients.add(c.client_id);
+        clientOrders[c.client_id] = c;
+      }
+    }
+  }
+
+  const zoneClients = Object.entries(allClients)
+    .filter(([,c])=>c.zone===zid)
+    .sort((a,b)=>(b[1].total_boxes||0)-(a[1].total_boxes||0));
+
+  renderClientList(zid, color, zoneClients, todayClients, clientOrders, '');
+}
+
+function filterClients() {
+  const q = document.getElementById('search-inp').value.toLowerCase();
+  const zid = document.getElementById('search-inp').dataset.zone;
+  if (!zid || zid==='MIXTA') return;
+  const color = ZONE_COLOR[zid] || '#475569';
+  const dayData = WH_DATA.find(d=>d.date===selDay);
+  if (!dayData) return;
+  const allClients = CL_DATA.clients||{};
+  const todayClients = new Set();
+  const clientOrders = {};
+  for (const vp of dayData.vehicle_plans||[]) {
+    for (const trip of vp.trips||[]) {
+      if (trip.warehouse_zone !== zid) continue;
+      for (const c of trip.client_checklist||[]) { todayClients.add(c.client_id); clientOrders[c.client_id]=c; }
+    }
+  }
+  const zoneClients = Object.entries(allClients)
+    .filter(([,c])=>c.zone===zid)
+    .sort((a,b)=>(b[1].total_boxes||0)-(a[1].total_boxes||0));
+  renderClientList(zid, color, zoneClients, todayClients, clientOrders, q);
+}
+
+function renderClientList(zid, color, zoneClients, todayClients, clientOrders, query) {
+  let active   = zoneClients.filter(([id])=>todayClients.has(id));
+  let inactive = zoneClients.filter(([id])=>!todayClients.has(id));
+  if (query) {
+    const q = query.toLowerCase();
+    active   = active.filter(([,c])=>(c.name||'').toLowerCase().includes(q)||(c.city||'').toLowerCase().includes(q));
+    inactive = inactive.filter(([,c])=>(c.name||'').toLowerCase().includes(q)||(c.city||'').toLowerCase().includes(q));
+  }
+
+  const makeCard = ([id,c], isActive) => {
+    const order = clientOrders[id];
+    // Real cats only
+    const catSet = order
+      ? [...new Set((order.products||[]).map(p=>p.cat).filter(c=>!SKIP_CATS.has(c)))].slice(0,4)
+      : (c.primary_cats||[]).filter(cat=>!SKIP_CATS.has(cat)).slice(0,3);
+    const catPills = catSet.map(cat=>
+      `<span class="cc-cat" style="background:${CAT_COLOR[cat]||'#475569'}33;color:${CAT_COLOR[cat]||'#64748b'}">${CAT_ICO[cat]||'📦'} ${CAT_LBL[cat]||cat}</span>`
+    ).join('');
+    const boxes = order ? order.total_boxes : (c.total_boxes||0);
+    const palFrac = order ? order.pallet_frac : 0;
+    const tw = order?.tw_close && order.tw_close < 86399
+      ? ` · 🕐 ${Math.floor(order.tw_open/3600)}:${String(Math.floor((order.tw_open%3600)/60)).padStart(2,'0')}` : '';
+    return `
+      <div class="client-card${isActive?' active-c':''}">
+        <div class="cc-zone" style="background:${isActive?color:'#334155'}">${zid}</div>
+        <div class="cc-info">
+          <div class="cc-name">${c.name||id}</div>
+          <div class="cc-meta">${c.city||''}${tw}</div>
+          <div class="cc-cats">${catPills}</div>
+        </div>
+        <div>
+          <div class="cc-boxes">${(boxes||0)|0}<span style="font-size:8px;color:var(--muted)"> cj</span></div>
+          ${palFrac?`<div class="cc-pal">${palFrac.toFixed(2)}P</div>`:''}
+        </div>
+      </div>`;
+  };
+
+  let html = '';
+  if (active.length > 0) {
+    html += `<div class="section-label" style="color:var(--success)">● Actius avui (${active.length})</div>`;
+    html += active.map(e=>makeCard(e,true)).join('');
+  }
+  if (!query && inactive.length > 0) {
+    html += `<div class="section-label">○ Clients de la zona sense pedido avui (${inactive.length})</div>`;
+    html += inactive.slice(0,50).map(e=>makeCard(e,false)).join('');
+    if (inactive.length>50)
+      html += `<div style="text-align:center;padding:8px;font-size:10px;color:var(--muted)">+${inactive.length-50} clients més...</div>`;
+  }
+  if (!html) html='<div class="panel-empty">Cap client trobat</div>';
+  document.getElementById('panel-body').innerHTML = html;
+}
+
+init();
+</script>
+</body>
+</html>

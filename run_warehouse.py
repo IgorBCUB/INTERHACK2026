@@ -40,6 +40,27 @@ ZONE_COLORS = {
     "A":"#6366f1","B":"#06b6d4","C":"#10b981","D":"#f59e0b",
     "E":"#f43f5e","F":"#a855f7","G":"#ec4899","H":"#14b8a6",
 }
+# Pallet colors by primary category (all pallets in a trip share the same zone,
+# so color by product type to distinguish pallets within the trip)
+CAT_COLORS = {
+    "beer":      "#b45309",
+    "water":     "#1d4ed8",
+    "wine":      "#6d28d9",
+    "softdrink": "#065f46",
+    "dairy":     "#0369a1",
+    "coffee":    "#44403c",
+    "sweetener": "#7e22ce",
+    "packaging": "#3f6212",
+    "empty_pkg": "#374151",
+    "icecream":  "#be185d",
+    "utensil":   "#57534e",
+    "generic":   "#475569",
+}
+CAT_ICON = {
+    "beer":"🍺","water":"💧","wine":"🍷","softdrink":"🥤","dairy":"🥛",
+    "coffee":"☕","sweetener":"🍬","packaging":"📦","empty_pkg":"♻️",
+    "icecream":"🍦","utensil":"🍴","generic":"📦",
+}
 CAT_LABEL = {
     "beer":"Cerveza","water":"Agua","wine":"Vino","softdrink":"Refresco",
     "dairy":"Lácteo","coffee":"Café","sweetener":"Edulcorante","packaging":"Embalaje",
@@ -123,138 +144,147 @@ def load_day_orders(date_str: str, client_zones: dict, density: dict, tw_data: d
 
 # ── Pallet planning per vehicle trip ─────────────────────────────────────────
 
-def _primary_cat(order: dict) -> str:
-    """Most voluminous category of an order."""
-    cats = order.get("cats", {})
-    return max(cats, key=cats.get) if cats else "generic"
-
-def _stop_weight(stop: dict) -> int:
-    """Stacking weight score for a stop (higher = heavier = goes to bottom layer)."""
-    order_weight = stop.get("weight", 1) * 10
-    top_cat = max(stop.get("main_cats", {"generic": 1}),
-                  key=lambda k: stop.get("main_cats", {}).get(k, 0),
-                  default="generic")
-    return order_weight + CATEGORY_WEIGHT.get(top_cat, 2)
-
-
-def plan_pallets_for_trip(stops_delivery_order: list, orders: dict, vehicle_cap: int = 6) -> list:
+def plan_pallets_for_trip(
+    stops_delivery_order: list, orders: dict, vehicle_cap: int = 6, zone: str = "?"
+) -> tuple:
     """
-    Given stops in DELIVERY order, plan pallets in LOADING order (LIFO).
+    Group by PRODUCT REFERENCE within the trip (not by client).
+    All pallets in a trip belong to the same zone — pallet identity = product type.
 
-    Stacking rules:
-      1. Same product category stays on the same pallet (box↔box, can↔can).
-      2. When a pallet must be mixed (overflow forced it), heavier products go to
-         the bottom layer (sorted by weight score DESC within the pallet stop list).
-      3. One full pallet slot is reserved for first-stop returns pickups.
-      4. 15% of each pallet space reserved for next-day returns (RETURN_RESERVE).
+    Returns (pallets, client_checklist).
     """
-    # Reserve 1 physical pallet slot in the truck for return pickups at first stop
-    effective_cap = max(1, vehicle_cap - 1)
-
-    # LIFO: last delivery stop is loaded first (deepest in truck)
-    stops_lifo = list(reversed(stops_delivery_order))
-
-    pallets = []
-    current_pallet: dict | None = None
-
-    def new_pallet(pcat: str, zone: str) -> dict:
-        return {
-            "primary_cat": pcat,
-            "zone":        zone,
-            "used_frac":   0.0,
-            "stops":       [],
-            "fragile":     False,
-            "heavy":       False,
-            "categories":  defaultdict(float),
-            "total_boxes": 0.0,
-        }
-
-    def flush(p: dict):
-        if not (p and p["stops"]):
-            return
-        # Sort stops within pallet: heaviest first → goes to bottom layer
-        p["stops"].sort(key=_stop_weight, reverse=True)
-        pallets.append(p)
-
-    for stop in stops_lifo:
+    # ── 1. Aggregate all products from all clients by material code ───────────
+    mat_totals: dict = {}
+    for stop in stops_delivery_order:
         cid = stop["client_id"]
         o   = orders.get(cid)
         if not o:
             continue
+        for prod in o.get("products", []):
+            mat = prod["mat"]
+            if mat not in mat_totals:
+                mat_totals[mat] = {
+                    "mat":              mat,
+                    "denom":            prod["denom"],
+                    "cat":              prod["cat"],
+                    "fragility":        prod["fragility"],
+                    "weight":           prod.get("weight", 1),
+                    "boxes_per_pallet": prod.get("boxes_per_pallet", 80),
+                    "total_qty":        0.0,
+                    "total_frac":       0.0,
+                }
+            mat_totals[mat]["total_qty"]  += prod["qty"]
+            mat_totals[mat]["total_frac"] += prod["pallet_frac"]
 
-        pcat      = _primary_cat(o)
-        zone      = o["zone"]
-        stop_frac = max(0.05, o["pallet_frac"])   # min 0.05 for box-only orders
+    # ── 2. Sort products: heavy categories first, most voluminous within cat ──
+    # Heavy products go first → sit at the bottom of the pallet (stacking safety)
+    sorted_prods = sorted(
+        mat_totals.values(),
+        key=lambda p: (-CATEGORY_WEIGHT.get(p["cat"], 2), -p["total_frac"])
+    )
 
-        if current_pallet is None:
-            current_pallet = new_pallet(pcat, zone)
+    # ── 3. Bin-pack: fill each pallet to MAX_USABLE_FRAC before opening a new one
+    # Empty space = wasted trip → always maximise fill regardless of category.
+    pallets: list = []
+    current: dict | None = None
 
-        cat_change     = current_pallet["primary_cat"] != pcat
-        would_overflow = current_pallet["used_frac"] + stop_frac > MAX_USABLE_FRAC
+    def new_pallet() -> dict:
+        return {
+            "products":    [],
+            "categories":  defaultdict(float),
+            "used_frac":   0.0,
+            "total_boxes": 0.0,
+            "fragile":     False,
+            "heavy":       False,
+        }
 
-        if would_overflow and current_pallet["stops"]:
-            # Pallet full → flush and start fresh (same-order rule always respected:
-            # the whole client stop goes to the new pallet, never split mid-order)
-            flush(current_pallet)
-            current_pallet = new_pallet(pcat, zone)
-        elif cat_change and current_pallet["used_frac"] >= 0.20:
-            # Different primary category + pallet has some content →
-            # prefer keeping same product type together (lower threshold = cleaner grouping)
-            flush(current_pallet)
-            current_pallet = new_pallet(pcat, zone)
+    def flush(p: dict):
+        if p and p["products"]:
+            pallets.append(p)
 
-        stop_entry = {
-            "stop_num":    stop.get("stop_num", 0),
+    for prod in sorted_prods:
+        cat      = prod["cat"]
+        rem_frac = prod["total_frac"]
+        rem_qty  = prod["total_qty"]
+
+        if current is None:
+            current = new_pallet()
+
+        # Split product across pallets whenever the current one is full
+        while rem_frac > 0.001:
+            available = MAX_USABLE_FRAC - current["used_frac"]
+            if available <= 0.001:
+                flush(current)
+                current = new_pallet()
+                available = MAX_USABLE_FRAC
+
+            take_frac = min(rem_frac, available)
+            take_qty  = rem_qty * (take_frac / rem_frac)
+
+            current["products"].append({
+                "mat":              prod["mat"],
+                "denom":            prod["denom"],
+                "cat":              prod["cat"],
+                "fragility":        prod["fragility"],
+                "weight":           prod["weight"],
+                "boxes_per_pallet": prod["boxes_per_pallet"],
+                "qty":              round(take_qty, 1),
+                "pallet_frac":      round(take_frac, 3),
+            })
+            current["used_frac"]   += take_frac
+            current["total_boxes"] += take_qty
+            current["fragile"]      = current["fragile"] or prod["fragility"] >= 2
+            current["heavy"]        = current["heavy"]   or prod["weight"] >= 2
+            current["categories"][cat] += take_frac
+
+            rem_frac -= take_frac
+            rem_qty  -= take_qty
+
+    flush(current)
+
+    # ── 4. Build client checklist (delivery order) ────────────────────────────
+    client_checklist = []
+    for stop in stops_delivery_order:
+        cid = stop["client_id"]
+        o   = orders.get(cid)
+        if not o:
+            continue
+        client_checklist.append({
             "client_id":   cid,
             "name":        o["name"],
             "city":        o["city"],
-            "boxes":       round(o["total_boxes"], 1),
-            "pallet_frac": round(stop_frac, 3),
-            "fragility":   o["fragility"],
-            "weight":      o["weight"],
             "tw_open":     o["tw_open"],
             "tw_close":    o["tw_close"],
-            "main_cats":   {c: round(v, 3) for c, v in o["main_cats"].items()},
-            "mixed_cats":  {c: round(v, 3) for c, v in o["mixed_cats"].items()},
-            "products":    o.get("products", []),  # real product lines from ZM040
-        }
-        current_pallet["stops"].append(stop_entry)
-        current_pallet["used_frac"]   += stop_frac
-        current_pallet["total_boxes"] += o["total_boxes"]
-        current_pallet["fragile"]      = current_pallet["fragile"] or o["fragility"] >= 2
-        current_pallet["heavy"]        = current_pallet["heavy"]   or o["weight"]    >= 2
-        for cat, vol in o["cats"].items():
-            current_pallet["categories"][cat] += vol
+            "fragility":   o["fragility"],
+            "total_boxes": round(o["total_boxes"], 1),
+            "pallet_frac": round(o["pallet_frac"], 3),
+            "products":    o.get("products", []),
+        })
 
-    flush(current_pallet)
-
-    # Finalize pallets: number (1 = deepest = first loaded = last delivery)
+    # ── 5. Finalize pallets (loading order: deepest first = pallet_num 1) ─────
     n = len(pallets)
     for i, p in enumerate(pallets):
-        depth = i + 1
+        depth      = i + 1
         pos_bucket = math.ceil(depth / max(n, 1) * 5)
-        # Detect mixed pallet (more than one primary category present)
-        cats_present = [c for c, v in p["categories"].items() if v > 0]
-        is_mixed = len(cats_present) > 1
-        # Stacking warning: fragile AND heavy on same pallet
-        stack_warn = p["fragile"] and p["heavy"]
+        pcat       = max(p["categories"], key=p["categories"].get) if p["categories"] else "generic"
+        is_mixed   = sum(1 for v in p["categories"].values() if v > 0) > 1
 
-        p["pallet_num"]       = depth
-        p["loading_depth"]    = depth
-        p["loading_position"] = POSITION_LABEL.get(pos_bucket, "Mig")
-        p["reserved_frac"]    = round(RETURN_RESERVE, 2)
-        p["used_frac"]        = round(p["used_frac"], 3)
-        p["total_frac"]       = round(p["used_frac"] + RETURN_RESERVE, 3)
-        p["total_boxes"]      = round(p["total_boxes"], 1)
-        p["categories"]       = {c: round(v, 3) for c, v in p["categories"].items()}
-        p["primary_cat"]      = max(p["categories"], key=p["categories"].get) if p["categories"] else "generic"
-        p["is_mixed"]         = is_mixed
-        p["stack_warning"]    = stack_warn
-        p["stack_order"]      = "weight_asc"   # stops already sorted heavy→bottom
-        p["color"]            = ZONE_COLORS.get(p["zone"], "#475569")
-        p["return_reserve_slot"] = (i == n - 1)   # last pallet is nearest door, next to reserve slot
+        p["pallet_num"]        = depth
+        p["loading_depth"]     = depth
+        p["loading_position"]  = POSITION_LABEL.get(pos_bucket, "Mig")
+        p["reserved_frac"]     = round(RETURN_RESERVE, 2)
+        p["used_frac"]         = round(p["used_frac"], 3)
+        p["total_frac"]        = round(p["used_frac"] + RETURN_RESERVE, 3)
+        p["total_boxes"]       = round(p["total_boxes"], 1)
+        p["categories"]        = {c: round(v, 3) for c, v in p["categories"].items()}
+        p["primary_cat"]       = pcat
+        p["is_mixed"]          = is_mixed
+        p["stack_warning"]     = p["fragile"] and p["heavy"]
+        p["zone"]              = zone    # all pallets in same trip share the zone
+        p["color"]             = CAT_COLORS.get(pcat, "#475569")
+        p["cat_icon"]          = CAT_ICON.get(pcat, "📦")
 
-    return pallets
+    return pallets, client_checklist
 
 
 # ── Mixed zone aggregation ────────────────────────────────────────────────────
@@ -375,14 +405,16 @@ def main():
                     for i, s in enumerate(trip["stops"])
                 ]
 
-                pallets = plan_pallets_for_trip(stops_delivery, orders, cap)
+                wzone = trip.get("warehouse_zone", "?")
+                pallets, checklist = plan_pallets_for_trip(stops_delivery, orders, cap, zone=wzone)
                 trip_plans.append({
-                    "trip_num":       trip["trip_number"],
-                    "is_reload":      trip["is_reload"],
-                    "warehouse_zone": trip.get("warehouse_zone", "?"),
-                    "n_stops":        len(stops_delivery),
-                    "n_pallets":      len(pallets),
-                    "pallets":        pallets,
+                    "trip_num":        trip["trip_number"],
+                    "is_reload":       trip["is_reload"],
+                    "warehouse_zone":  wzone,
+                    "n_stops":         len(stops_delivery),
+                    "n_pallets":       len(pallets),
+                    "pallets":         pallets,
+                    "client_checklist": checklist,
                 })
                 total_pallets_planned += len(pallets)
 
