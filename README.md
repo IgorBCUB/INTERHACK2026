@@ -10,7 +10,8 @@ Every day a fleet of trucks and vans leaves a single depot (DDI Mollet del Vall�
 
 The dataset covers five delivery days (16–20 March 2026), with a mixed fleet of 8-pallet trucks, 6-pallet trucks and 3-pallet vans.
 
-## How it works
+How it works
+
 orders + time windows + product data
        
 logistics distance matrix 
