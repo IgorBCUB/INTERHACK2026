@@ -1,29 +1,34 @@
-Interhack BCN 2026 · Estrella Damm Logistics Optimisation
+# Interhack BCN 2026 · Estrella Damm Logistics Optimisation
 
 A delivery-planning tool for a beverage distribution operation. It groups customer orders into vehicle-sized clusters, builds the daily routes for each vehicle, and plans how every truck is loaded at the warehouse.
 
 Built for the Estrella Damm challenge at Interhack BCN 2026 by a team of four.
 
-The problem
+## The problem
 
 Every day a fleet of trucks and vans leaves a single depot (DDI Mollet del Vallès) to deliver beer, water, soft drinks, wine, dairy, coffee and packaging to hundreds of customers. Each customer has its own time window, products differ in weight and fragility, and trucks have to be loaded in the right order. The goal is to reduce travel time, fuel, CO₂ and the number of trips, while making the warehouse's job easier.
 
 The dataset covers five delivery days (16–20 March 2026), with a mixed fleet of 8-pallet trucks, 6-pallet trucks and 3-pallet vans.
 
-How it works
+## How it works
 orders + time windows + product data
+       
+logistics distance matrix 
         │
         ▼
- logistics distance matrix  ──►  constrained K-Medoids clustering  ──►  refinement (move / swap)
-                                                                              │
-                                                                              ▼
-                                       warehouse zones (A–H)  ◄──  vehicle assignment per cluster
-                                                                              │
-                                                                              ▼
-                                  per-cluster routing (nearest neighbour + 2-opt) with time windows
-                                                                              │
-                                                                              ▼
-                                          warehouse pallet planning (LIFO, fragility, returns)
+constrained K-Medoids clustering  ──►  
+ 
+refinement (move / swap)
+      │
+      ▼
+vehicle assignment per cluster ──►  warehouse zones (A–H)
+      │
+      ▼
+per-cluster routing (nearest neighbour + 2-opt) with time windows
+      │
+      ▼
+warehouse pallet planning (LIFO, fragility, returns)
+  
 1. Routing by logistics clustering (clustering/, vrp/)
 Logistics distance. Orders are compared with a weighted cost instead of plain geography: D = α·travel time + β·fuel + γ·distance proxy + δ·logistics penalty (weights 0.5 / 0.3 / 0.1 / 0.1, tunable in config.py).
 Constrained K-Medoids (PAM-style) with K-Medoids++ seeding, one cluster per vehicle. Clusters that exceed the largest vehicle's pallet capacity are split afterwards, then improved with move/swap refinement passes.
@@ -31,12 +36,14 @@ Vehicle assignment. Small, priority, non-fragile clusters go to the van; the res
 Routing inside each cluster. Nearest-neighbour construction + 2-opt improvement. The cost model includes time windows (penalties scale with how tight the window is), unloading time proportional to pallets, simulated parking time, depot reloads and an 8-hour daily cap that is enforced after routing (overflow stops are redistributed when possible).
 Baseline. run_week.py solves the same days with Clarke–Wright savings plus simulated annealing (2-opt, relocate and swap moves) on a combined time + fuel cost, for comparison.
 Emissions. Fuel is converted to CO₂ with a diesel factor of 2.68 kg/L.
+
 2. Warehouse preparation (warehouse/, run_warehouse.py)
 Each product is classified by category, fragility, weight, stackability and returnability.
 Products are aggregated by reference across all stops of a trip and bin-packed into pallets, heavy items first, with 15 % of each pallet reserved for next-day returns.
 Pallets follow a LIFO loading order (last delivery goes deepest in the truck) and are tagged with a loading position.
 Minor categories (< 8 % of an order) are routed to a mixed zone; each trip is assigned one of eight warehouse zones.
 The cost model compares preparation strategies (by order, by reference, hybrid) and penalises fragile/heavy mixes, stacking violations, and fragile goods buried deep in vans without side access.
+
 3. Interfaces (static HTML)
 
 Web views that read the generated JSON results:
