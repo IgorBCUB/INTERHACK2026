@@ -1,4 +1,4 @@
-#Interhack BCN 2026 · Estrella Damm Logistics Optimisation
+Interhack BCN 2026 · Estrella Damm Logistics Optimisation
 
 A delivery-planning tool for a beverage distribution operation. It groups customer orders into vehicle-sized clusters, builds the daily routes for each vehicle, and plans how every truck is loaded at the warehouse.
 
